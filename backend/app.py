@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Enable CORS for Vite dev server with credentials support for HttpOnly cookies
+import re
+
+# Enable CORS for local Vite dev server and production HTTPS frontend deployments
 CORS(
     app,
     resources={
@@ -28,6 +30,7 @@ CORS(
                 "http://127.0.0.1:5173",
                 "http://localhost:5000",
                 "http://127.0.0.1:5000",
+                re.compile(r"^https://.*"),
             ],
             "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
