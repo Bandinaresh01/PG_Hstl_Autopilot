@@ -1,0 +1,404 @@
+/* Facilities & Services Section */
+.facilities-section {
+  background-color: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 5.5rem 0 6.5rem;
+}
+
+.facilities-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* Header */
+.facilities-header {
+  text-align: center;
+  max-width: 680px;
+  margin: 0 auto 3.5rem;
+}
+
+.facilities-label-wrapper {
+  margin-bottom: 0.65rem;
+}
+
+.facilities-label {
+  display: inline-block;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2563eb;
+}
+
+.facilities-heading {
+  font-size: clamp(2rem, 3.5vw, 2.75rem);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  color: #0f172a;
+  margin: 0 0 0.85rem 0;
+}
+
+.facilities-description {
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: #475569;
+  margin: 0;
+}
+
+/* Facilities Grid (4 Columns on Desktop) */
+.facilities-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+}
+
+/* Facility Card */
+.facility-card {
+  position: relative;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  padding: 1.5rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.facility-card:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+  box-shadow:
+    0 10px 15px -3px rgba(15, 23, 42, 0.05),
+    0 4px 6px -4px rgba(15, 23, 42, 0.02);
+}
+
+/* Featured Facility Accent */
+.facility-card.featured-facility {
+  border-color: #bfdbfe;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+}
+
+.featured-facility-tag {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  background-color: #eff6ff;
+  color: #2563eb;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid #dbeafe;
+}
+
+/* Icon Box */
+.facility-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background-color: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.1rem;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.facility-card:hover .facility-icon-box {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+.facility-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.45rem 0;
+  letter-spacing: -0.01em;
+}
+
+.facility-desc {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #64748b;
+  margin: 0;
+}
+
+/* ==================================================
+   SUBSECTION 2: WHY CHOOSE URBANNEST
+================================================== */
+.why-choose-wrapper {
+  margin-top: 5rem;
+}
+
+.why-choose-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  box-shadow:
+    0 20px 25px -5px rgba(15, 23, 42, 0.04),
+    0 8px 10px -6px rgba(15, 23, 42, 0.02);
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+}
+
+/* Left Image Column */
+.why-choose-image-col {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 480px;
+  background-color: #f1f5f9;
+}
+
+.why-choose-image-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.why-choose-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.why-choose-badge {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 1.5rem;
+  background-color: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #ffffff;
+  border-radius: 9999px;
+  padding: 0.45rem 0.95rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.12);
+}
+
+.badge-star {
+  color: #fbbf24;
+}
+
+/* Right Content Column */
+.why-choose-content-col {
+  padding: 3.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.why-choose-label-wrapper {
+  margin-bottom: 0.65rem;
+}
+
+.why-choose-heading {
+  font-size: clamp(1.75rem, 2.8vw, 2.25rem);
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.85rem 0;
+}
+
+.why-choose-description {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #475569;
+  margin: 0 0 2rem 0;
+}
+
+/* 4 Benefits List */
+.benefits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-bottom: 2.25rem;
+}
+
+.benefit-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.benefit-number {
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: #2563eb;
+  background-color: #eff6ff;
+  border: 1px solid #dbeafe;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.benefit-text-block {
+  flex: 1;
+}
+
+.benefit-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.01em;
+}
+
+.benefit-desc {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: #64748b;
+  margin: 0;
+}
+
+/* CTA Buttons */
+.why-choose-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.why-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  padding: 0.75rem 1.65rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.why-btn-primary {
+  background-color: #0f172a;
+  color: #ffffff;
+  border: 1.5px solid #0f172a;
+}
+
+.why-btn-primary:hover {
+  background-color: #1e293b;
+  border-color: #1e293b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.12);
+}
+
+.why-btn-secondary {
+  background-color: #ffffff;
+  color: #0f172a;
+  border: 1.5px solid #cbd5e1;
+}
+
+.why-btn-secondary:hover {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+  transform: translateY(-2px);
+}
+
+/* ==================================================
+   RESPONSIVE MEDIA QUERIES
+================================================== */
+@media (max-width: 1024px) {
+  .facilities-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .why-choose-card {
+    grid-template-columns: 1fr;
+  }
+
+  .why-choose-image-col {
+    min-height: 360px;
+    max-height: 420px;
+  }
+
+  .why-choose-content-col {
+    padding: 2.75rem 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .facilities-section {
+    padding: 4rem 0 5rem;
+  }
+
+  .facilities-header {
+    margin-bottom: 2.5rem;
+  }
+
+  .facilities-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .facility-card {
+    padding: 1.25rem 1rem;
+  }
+
+  .why-choose-wrapper {
+    margin-top: 3.5rem;
+  }
+
+  .why-choose-content-col {
+    padding: 2.25rem 1.5rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .facilities-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .why-choose-actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .why-btn {
+    width: 100%;
+  }
+}
+
+.facilities-page-cta {
+  margin-top: 4.5rem;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1.25rem;
+  padding: 2.5rem 2rem;
+  text-align: center;
+}
+
+.facilities-page-cta-text {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 1.25rem 0;
+}
+

@@ -1,0 +1,248 @@
+/* Hostel Overview / About Section */
+.overview-section {
+  background-color: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+  border-bottom: 1px solid #f1f5f9;
+  overflow: hidden;
+}
+
+.overview-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 5rem 1.5rem 5.5rem;
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  grid-template-areas:
+    "image header"
+    "image details";
+  column-gap: 3.5rem;
+  row-gap: 1.5rem;
+  align-items: start;
+}
+
+/* Header Area */
+.overview-header {
+  grid-area: header;
+  display: flex;
+  flex-direction: column;
+}
+
+.overview-label-wrapper {
+  margin-bottom: 0.65rem;
+}
+
+.overview-label {
+  display: inline-block;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2563eb;
+}
+
+.overview-heading {
+  font-size: clamp(1.85rem, 3.2vw, 2.5rem);
+  font-weight: 800;
+  line-height: 1.22;
+  letter-spacing: -0.025em;
+  color: #0f172a;
+  margin: 0 0 1rem 0;
+}
+
+.overview-description {
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: #475569;
+  margin: 0;
+}
+
+/* Left Image Area */
+.overview-image-wrapper {
+  grid-area: image;
+  width: 100%;
+  height: 100%;
+}
+
+.overview-image-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 1.25rem;
+  overflow: hidden;
+  box-shadow:
+    0 20px 25px -5px rgba(15, 23, 42, 0.07),
+    0 8px 10px -6px rgba(15, 23, 42, 0.03);
+  border: 1px solid #e2e8f0;
+  background-color: #f1f5f9;
+}
+
+.overview-image {
+  width: 100%;
+  height: 100%;
+  min-height: 460px;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  display: block;
+}
+
+.overview-image-badge {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 1.25rem;
+  background-color: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+  padding: 0.45rem 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.12);
+}
+
+.overview-badge-icon {
+  color: #38bdf8;
+  font-size: 0.75rem;
+}
+
+/* Details: Highlights & Stats */
+.overview-details {
+  grid-area: details;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+/* Highlights Grid */
+.overview-highlights-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.85rem;
+}
+
+.overview-highlight-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.overview-highlight-card:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+}
+
+.highlight-icon-wrapper {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background-color: #eff6ff;
+  color: #2563eb;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.highlight-text {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.3;
+}
+
+/* Quick Stats Grid */
+.overview-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.85rem;
+  padding-top: 0.5rem;
+}
+
+.overview-stat-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.1rem 0.65rem;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.overview-stat-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+  margin-bottom: 0.35rem;
+  letter-spacing: -0.02em;
+}
+
+.stat-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+/* Responsive Media Queries */
+@media (max-width: 992px) {
+  .overview-container {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "header"
+      "image"
+      "details";
+    gap: 2.25rem;
+    padding: 4rem 1.5rem 4.5rem;
+  }
+
+  .overview-image {
+    min-height: unset;
+    aspect-ratio: 16 / 10;
+    max-height: 440px;
+  }
+}
+
+@media (max-width: 640px) {
+  .overview-container {
+    padding: 3rem 1.25rem 3.5rem;
+    gap: 1.75rem;
+  }
+
+  .overview-heading {
+    font-size: 1.75rem;
+    line-height: 1.25;
+  }
+
+  .overview-description {
+    font-size: 0.975rem;
+  }
+
+  .overview-highlights-grid {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+  }
+
+  .overview-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  .overview-image {
+    aspect-ratio: 16 / 11;
+  }
+}

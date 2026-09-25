@@ -1,0 +1,370 @@
+/* Hero Section */
+.hero-section {
+  background-color: #ffffff;
+  overflow: hidden;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.hero-container {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 4.5rem 1.5rem 5.5rem;
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 3.5rem;
+  align-items: center;
+}
+
+/* Left Content */
+.hero-content {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Location Badge */
+.hero-location-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  padding: 0.35rem 0.85rem;
+  width: fit-content;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+  letter-spacing: 0.01em;
+  margin-bottom: 1.25rem;
+}
+
+.location-icon {
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+/* Headings */
+.hero-heading {
+  font-size: clamp(2.35rem, 4vw, 3.4rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+  margin: 0 0 1.25rem 0;
+}
+
+.hero-heading-highlight {
+  color: #1e293b;
+}
+
+/* Supporting Description */
+.hero-description {
+  font-size: 1.125rem;
+  line-height: 1.65;
+  color: #475569;
+  margin: 0 0 2rem 0;
+  max-width: 520px;
+}
+
+/* CTA Buttons */
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.hero-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  padding: 0.85rem 1.85rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.hero-btn-primary {
+  background-color: #0f172a;
+  color: #ffffff;
+  border: 1.5px solid #0f172a;
+}
+
+.hero-btn-primary:hover {
+  background-color: #1e293b;
+  border-color: #1e293b;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 18px -4px rgba(15, 23, 42, 0.18);
+}
+
+.hero-btn-secondary {
+  background-color: #ffffff;
+  color: #0f172a;
+  border: 1.5px solid #cbd5e1;
+}
+
+.hero-btn-secondary:hover {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* Four Trust Highlights (Compact Horizontal) */
+.hero-highlights {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1.25rem;
+  margin-top: 2.25rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.highlight-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.check-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #dcfce7;
+  color: #15803d;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Right Column: Multi-Image Hospitality Composition */
+.hero-visual-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.hero-composition {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+/* Main Building/Property Card */
+.hero-main-card {
+  position: relative;
+  width: 100%;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 16px 32px -8px rgba(15, 23, 42, 0.12);
+  border: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+}
+
+.hero-main-img {
+  width: 100%;
+  height: 280px;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s ease;
+}
+
+.hero-main-card:hover .hero-main-img {
+  transform: scale(1.02);
+}
+
+/* Top Badge on Main Card */
+.hero-badge-tag {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  background-color: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 9999px;
+  padding: 0.4rem 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #0f172a;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #16a34a;
+  flex-shrink: 0;
+}
+
+/* Secondary Sub-cards (Room + Dining side-by-side) */
+.hero-sub-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+}
+
+.hero-sub-card {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 10px 20px -5px rgba(15, 23, 42, 0.08);
+  border: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+}
+
+.hero-sub-img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s ease;
+}
+
+.hero-sub-card:hover .hero-sub-img {
+  transform: scale(1.03);
+}
+
+.hero-sub-label {
+  position: absolute;
+  bottom: 0.65rem;
+  left: 0.65rem;
+  background: rgba(15, 23, 42, 0.78);
+  color: #ffffff;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  letter-spacing: 0.01em;
+}
+
+/* Floating Trust Badge 2 (Food & Dining) */
+.hero-badge-floating {
+  position: absolute;
+  bottom: -1rem;
+  right: 1rem;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 0.65rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-shadow: 0 12px 24px -6px rgba(15, 23, 42, 0.15);
+  z-index: 2;
+  transition: transform 0.2s ease;
+}
+
+.hero-badge-floating:hover {
+  transform: translateY(-2px);
+}
+
+.floating-badge-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.floating-badge-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.floating-badge-text strong {
+  font-size: 0.8125rem;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.floating-badge-text span {
+  font-size: 0.725rem;
+  color: #64748b;
+}
+
+/* Tablet & Mobile Breakpoints */
+@media (max-width: 992px) {
+  .hero-container {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+    padding: 3.5rem 1.5rem 4.5rem;
+  }
+
+  .hero-description {
+    max-width: 100%;
+  }
+
+  .hero-main-img {
+    height: 320px;
+  }
+
+  .hero-sub-img {
+    height: 160px;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-container {
+    padding: 2.25rem 1.25rem 3.5rem;
+    gap: 2.25rem;
+  }
+
+  .hero-heading {
+    font-size: 2.15rem;
+    line-height: 1.2;
+  }
+
+  .hero-description {
+    font-size: 1rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  .hero-btn {
+    width: 100%;
+  }
+
+  .hero-highlights {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+    margin-top: 1.75rem;
+  }
+
+  .hero-main-img {
+    height: 220px;
+  }
+
+  .hero-sub-img {
+    height: 120px;
+  }
+
+  .hero-badge-floating {
+    position: static;
+    margin-top: 0.5rem;
+    width: 100%;
+    justify-content: center;
+  }
+}
