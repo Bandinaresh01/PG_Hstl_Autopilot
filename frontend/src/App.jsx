@@ -17,6 +17,8 @@ import OwnerDashboardPage from './pages/owner/OwnerDashboardPage'
 import OwnerBookingsPage from './pages/owner/OwnerBookingsPage'
 import OwnerPaymentsPage from './pages/owner/OwnerPaymentsPage'
 import OwnerDuesPage from './pages/owner/OwnerDuesPage'
+import OwnerRoomsPage from './pages/owner/OwnerRoomsPage'
+import OwnerTenantsPage from './pages/owner/OwnerTenantsPage'
 import OwnerModulePlaceholder from './pages/owner/OwnerModulePlaceholder'
 import './App.css'
 
@@ -46,24 +48,8 @@ function App() {
             }
           />
           <Route path="bookings" element={<OwnerBookingsPage />} />
-          <Route
-            path="rooms"
-            element={
-              <OwnerModulePlaceholder
-                title="Rooms & Beds Configuration"
-                description="Floor plans, room categorization, bed assignments, and live availability controls."
-              />
-            }
-          />
-          <Route
-            path="tenants"
-            element={
-              <OwnerModulePlaceholder
-                title="Tenant Directory & KYC"
-                description="Active resident profiles, emergency contacts, ID documents, and agreement history."
-              />
-            }
-          />
+          <Route path="rooms" element={<OwnerRoomsPage />} />
+          <Route path="tenants" element={<OwnerTenantsPage />} />
           <Route path="payments" element={<OwnerPaymentsPage />} />
           <Route path="dues" element={<OwnerDuesPage />} />
           <Route

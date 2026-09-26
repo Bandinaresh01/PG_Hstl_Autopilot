@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchOwnerDashboard, useOwnerAuth } from '../../utils/ownerAuth'
+import { initialRooms, getRoomStats } from '../../data/roomsData'
+import { initialTenants, calculateStayDuration, getTenantStats } from '../../data/tenantsData'
 import './OwnerDashboardPage.css'
 
 export default function OwnerDashboardPage() {
@@ -109,11 +111,14 @@ export default function OwnerDashboardPage() {
     )
   }
 
-  const summary = dashboardData?.summary || {
-    total_beds: 0,
-    occupied_beds: 0,
-    available_beds: 0,
-    current_tenants: 0,
+  const roomStats = getRoomStats(initialRooms)
+  const tenantStats = getTenantStats(initialTenants)
+
+  const summary = {
+    total_beds: dashboardData?.summary?.total_beds || roomStats.totalBeds,
+    occupied_beds: dashboardData?.summary?.occupied_beds || roomStats.occupiedBeds,
+    available_beds: dashboardData?.summary?.available_beds || roomStats.availableBeds,
+    current_tenants: dashboardData?.summary?.current_tenants || tenantStats.totalTenants,
   }
 
   const enquiriesKpi = dashboardData?.enquiries || {
@@ -226,53 +231,65 @@ export default function OwnerDashboardPage() {
           3. TOP KPI CARDS: SUMMARY CAPACITY & OCCUPANCY
       ================================================== */}
       <section className="kpi-primary-grid">
-        <div className="kpi-card">
+        <Link to="/owner/rooms" className="kpi-card" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className="kpi-card-header">
             <span className="kpi-card-label">Total Beds</span>
             <div className="kpi-card-icon icon-beds">🛏️</div>
           </div>
           <div className="kpi-card-number">{summary.total_beds}</div>
           <div className="kpi-card-footer">
-            <span className="kpi-badge-neutral">Configured</span>
-            <span className="kpi-sub-text">Inventory pending setup</span>
+            <span className="kpi-badge-neutral">{roomStats.totalRooms} Rooms</span>
+            <span className="kpi-sub-text">View inventory &rarr;</span>
           </div>
-        </div>
+        </Link>
 
-        <div className="kpi-card">
+        <Link to="/owner/rooms" className="kpi-card" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className="kpi-card-header">
             <span className="kpi-card-label">Occupied Beds</span>
             <div className="kpi-card-icon icon-occupied">👥</div>
           </div>
           <div className="kpi-card-number">{summary.occupied_beds}</div>
           <div className="kpi-card-footer">
-            <span className="kpi-badge-neutral">0% Occupancy</span>
-            <span className="kpi-sub-text">Ready for admissions</span>
+            <span
+              className="kpi-badge-neutral"
+              style={{ backgroundColor: '#eff6ff', color: '#1d4ed8' }}
+            >
+              {Math.round((summary.occupied_beds / (summary.total_beds || 1)) * 100)}% Occupancy
+            </span>
+            <span className="kpi-sub-text">Active residents</span>
           </div>
-        </div>
+        </Link>
 
-        <div className="kpi-card">
+        <Link to="/owner/rooms" className="kpi-card" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className="kpi-card-header">
             <span className="kpi-card-label">Available Beds</span>
             <div className="kpi-card-icon icon-available">✨</div>
           </div>
-          <div className="kpi-card-number">{summary.available_beds}</div>
-          <div className="kpi-card-footer">
-            <span className="kpi-badge-neutral">Open</span>
-            <span className="kpi-sub-text">Awaiting room creation</span>
+          <div className="kpi-card-number" style={{ color: '#16a34a' }}>
+            {summary.available_beds}
           </div>
-        </div>
+          <div className="kpi-card-footer">
+            <span
+              className="kpi-badge-neutral"
+              style={{ backgroundColor: '#f0fdf4', color: '#15803d' }}
+            >
+              Ready to Book
+            </span>
+            <span className="kpi-sub-text">Assign bed &rarr;</span>
+          </div>
+        </Link>
 
-        <div className="kpi-card">
+        <Link to="/owner/tenants" className="kpi-card" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className="kpi-card-header">
             <span className="kpi-card-label">Current Tenants</span>
             <div className="kpi-card-icon icon-tenants">📋</div>
           </div>
           <div className="kpi-card-number">{summary.current_tenants}</div>
           <div className="kpi-card-footer">
-            <span className="kpi-badge-neutral">Active residents</span>
-            <span className="kpi-sub-text">Tenant module coming next</span>
+            <span className="kpi-badge-neutral">Directory &amp; KYC</span>
+            <span className="kpi-sub-text">View profiles &rarr;</span>
           </div>
-        </div>
+        </Link>
       </section>
 
       {/* ==================================================
@@ -476,28 +493,42 @@ export default function OwnerDashboardPage() {
           7. OCCUPANCY OVERVIEW & UPCOMING MOVE-INS
       ================================================== */}
       <section className="dashboard-grid-two-col" style={{ marginTop: '24px' }}>
-        {/* Occupancy Overview Placeholder */}
+        {/* Occupancy Overview Card */}
         <div className="dashboard-sub-card">
           <div className="section-card-header">
             <div>
               <h3 className="section-title">Occupancy Overview</h3>
               <p className="section-subtitle">Live room &amp; bed allocation</p>
             </div>
-            <button
-              type="button"
-              className="quick-action-btn primary"
-              style={{ fontSize: '0.8rem', padding: '6px 12px' }}
-              onClick={() => handleQuickAction('Set Up Rooms')}
-            >
-              Set Up Rooms
-            </button>
+            <Link to="/owner/rooms" className="view-all-link">
+              <span>Manage Rooms</span>
+              <span aria-hidden="true">&rarr;</span>
+            </Link>
           </div>
-          <div className="card-empty-state" style={{ minHeight: '140px' }}>
-            <span className="empty-icon">🏢</span>
-            <p className="empty-title">No room inventory configured yet.</p>
-            <p className="empty-desc">
-              Define floors, room types, and bed numbers in the Rooms &amp; Beds module to monitor occupancy.
-            </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '16px 0 4px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+              <div style={{ backgroundColor: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', fontWeight: 600 }}>OCCUPIED</span>
+                <strong style={{ fontSize: '1.2rem', color: '#1d4ed8' }}>{roomStats.occupiedBeds}</strong>
+                <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block' }}>Beds ({Math.round((roomStats.occupiedBeds / (roomStats.totalBeds || 1)) * 100)}%)</span>
+              </div>
+              <div style={{ backgroundColor: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.75rem', color: '#166534', display: 'block', fontWeight: 600 }}>AVAILABLE</span>
+                <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{roomStats.availableBeds}</strong>
+                <span style={{ fontSize: '0.7rem', color: '#166534', display: 'block' }}>Ready to assign</span>
+              </div>
+              <div style={{ backgroundColor: '#f5f3ff', padding: '10px', borderRadius: '8px', border: '1px solid #ddd6fe', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.75rem', color: '#6d28d9', display: 'block', fontWeight: 600 }}>RESERVED</span>
+                <strong style={{ fontSize: '1.2rem', color: '#7c3aed' }}>{roomStats.reservedBeds}</strong>
+                <span style={{ fontSize: '0.7rem', color: '#6d28d9', display: 'block' }}>Move-ins queued</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8125rem', color: '#475569', paddingTop: '4px' }}>
+              <span>Total Inventory: <strong>12 Rooms • 23 Beds</strong></span>
+              <Link to="/owner/rooms" style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
+                View Floor Plans &rarr;
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -553,13 +584,60 @@ export default function OwnerDashboardPage() {
               <h3 className="section-title">Upcoming Stay End Dates</h3>
               <p className="section-subtitle">Expiring agreements and notice periods</p>
             </div>
+            <Link to="/owner/tenants" className="view-all-link">
+              <span>View Tenants</span>
+              <span aria-hidden="true">&rarr;</span>
+            </Link>
           </div>
-          <div className="card-empty-state" style={{ minHeight: '130px' }}>
-            <span className="empty-icon">📅</span>
-            <p className="empty-title">No upcoming stay endings.</p>
-            <p className="empty-desc">
-              Tenants whose agreements are nearing completion will appear here with remaining days.
-            </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 0 4px' }}>
+            {initialTenants
+              .filter((t) => t.status !== 'MOVED_OUT')
+              .map((t) => ({ ...t, stay: calculateStayDuration(t.expectedEndDate) }))
+              .filter((t) => t.stay.isEndingSoon)
+              .sort((a, b) => (a.stay.daysDiff ?? 999) - (b.stay.daysDiff ?? 999))
+              .slice(0, 3)
+              .map((t) => (
+                <div
+                  key={t.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    backgroundColor: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <strong style={{ fontSize: '0.875rem', color: '#0f172a' }}>{t.name}</strong>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                      {t.roomNumber} • {t.bedCode} ({t.roomType})
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        fontSize: '0.725rem',
+                        fontWeight: 600,
+                        backgroundColor: '#fef2f2',
+                        color: '#dc2626',
+                        border: '1px solid #fecaca',
+                      }}
+                    >
+                      {t.stay.label}
+                    </span>
+                    <Link
+                      to="/owner/tenants"
+                      style={{ fontSize: '0.8rem', color: '#2563eb', textDecoration: 'none', fontWeight: 600 }}
+                    >
+                      Profile &rarr;
+                    </Link>
+                  </div>
+                </div>
+              ))}
           </div>
         </div>
       </section>

@@ -242,14 +242,32 @@ export default function OwnerBookingsPage() {
                       </span>
                     </td>
                     <td>
-                      <button
-                        type="button"
-                        className="btn-table-action"
-                        onClick={() => setSelectedBooking(b)}
-                        title="View Full Booking & Payment Details"
-                      >
-                        View
-                      </button>
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          className="btn-table-action"
+                          onClick={() => setSelectedBooking(b)}
+                          title="View Full Booking & Payment Details"
+                        >
+                          View
+                        </button>
+                        {b.bookingStatus === 'CONFIRMED' && (
+                          <Link
+                            to="/owner/rooms"
+                            className="btn-table-action"
+                            style={{
+                              backgroundColor: '#eff6ff',
+                              color: '#1d4ed8',
+                              borderColor: '#bfdbfe',
+                              textDecoration: 'none',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title="Assign Bed in Rooms"
+                          >
+                            Assign Bed
+                          </Link>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -365,12 +383,21 @@ export default function OwnerBookingsPage() {
             </div>
 
             <div className="modal-footer">
+              {selectedBooking.bookingStatus === 'CONFIRMED' && (
+                <Link
+                  to="/owner/rooms"
+                  className="quick-action-btn primary"
+                  style={{ textDecoration: 'none' }}
+                >
+                  Assign Bed in Rooms
+                </Link>
+              )}
               <Link to="/owner/payments" className="btn-table-action" style={{ textDecoration: 'none' }}>
                 Open Payments Ledger
               </Link>
               <button
                 type="button"
-                className="quick-action-btn primary"
+                className="btn-table-action"
                 onClick={() => setSelectedBooking(null)}
               >
                 Close
