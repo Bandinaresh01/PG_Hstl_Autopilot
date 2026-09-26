@@ -1,0 +1,12 @@
+{
+  "name": "hostel-crm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hostel CRM root runner",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "frontend": "npm --prefix frontend run dev",
+    "start": "npm --prefix frontend run dev"
+  }
+}
