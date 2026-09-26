@@ -71,8 +71,10 @@ def get_auth_client() -> Client:
 
 
 from payments_repo import PaymentRepository
+from complaints_repo import ComplaintsMaintenanceRepository
 
 _payment_repo = None
+_complaints_repo = None
 
 
 def get_payment_repo():
@@ -86,12 +88,24 @@ def get_payment_repo():
     return _payment_repo
 
 
+def get_complaints_repo():
+    global _complaints_repo
+    if _complaints_repo is None:
+        try:
+            db = get_db_client()
+        except Exception:
+            db = None
+        _complaints_repo = ComplaintsMaintenanceRepository(db)
+    return _complaints_repo
+
+
 # Verify startup configuration
 try:
     _startup_client = get_db_client()
     logger.info("Supabase client initialized successfully.")
-    # Initialize repository
+    # Initialize repositories
     get_payment_repo()
+    get_complaints_repo()
 except Exception as e:
     logger.error(f"Failed to initialize Supabase client: {e}")
 
@@ -773,6 +787,12 @@ def get_tenant_portal_data():
         monthly_rent_fallback=float(tenant.get("monthly_rent") or 8500.0)
     )
 
+    c_repo = get_complaints_repo()
+    complaints_summary = c_repo.get_tenant_complaint_summary(
+        hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+        tenant_id_filters=tenant_filters,
+    )
+
     return jsonify({
         "profile": {
             "user_code": tenant["user_code"],
@@ -803,6 +823,8 @@ def get_tenant_portal_data():
             "security_deposit_status": financial_summary["security_deposit"]["status"],
             "current_due": financial_summary["current_due"],
         },
+        "complaints_summary": complaints_summary,
+        "active_complaints_count": complaints_summary["open"] + complaints_summary["in_progress"],
         "notices": [
             {
                 "id": "not-1",
@@ -915,6 +937,115 @@ def get_tenant_single_payment(payment_id):
         logger.error(f"Error fetching payment {payment_id}: {e}")
         return jsonify({"error": "Unable to retrieve payment details."}), 500
 
+
+@app.route("/api/tenant/me/complaints", methods=["GET"])
+@tenant_required
+def get_tenant_my_complaints():
+    """
+    List complaints strictly belonging to the authenticated tenant.
+    Never exposes internal owner_notes or other residents' complaints.
+    """
+    try:
+        tenant = g.current_tenant
+        tenant_filters = [
+            tenant.get("user_code"),
+            tenant.get("email"),
+            tenant.get("auth_user_id"),
+        ]
+        repo = get_complaints_repo()
+        complaints = repo.get_tenant_complaints(
+            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            tenant_id_filters=tenant_filters,
+        )
+        summary = repo.get_tenant_complaint_summary(
+            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            tenant_id_filters=tenant_filters,
+        )
+        return jsonify({
+            "complaints": complaints,
+            "summary": summary,
+        }), 200
+    except Exception as e:
+        logger.error(f"Error fetching tenant complaints: {e}")
+        return jsonify({"error": "Unable to retrieve complaints at this time."}), 500
+
+
+@app.route("/api/tenant/me/complaints", methods=["POST"])
+@tenant_required
+def create_tenant_my_complaint():
+    """
+    Submit a new complaint raised by the authenticated resident.
+    Server strictly resolves tenant_id, hostel_id from token session.
+    Initial status: OPEN.
+    """
+    try:
+        tenant = g.current_tenant
+        payload = request.get_json(silent=True) or {}
+
+        title = (payload.get("title") or "").strip()
+        description = (payload.get("description") or "").strip()
+        category = (payload.get("category") or "").strip()
+        priority = (payload.get("priority") or "MEDIUM").strip().upper()
+        location = (payload.get("location") or "").strip()
+
+        if not title:
+            return jsonify({"error": "Issue title is required."}), 400
+        if not description:
+            return jsonify({"error": "Description of the issue is required."}), 400
+        if not category:
+            return jsonify({"error": "Category is required."}), 400
+
+        repo = get_complaints_repo()
+        created = repo.create_tenant_complaint(
+            data={
+                "title": title,
+                "description": description,
+                "category": category,
+                "priority": priority,
+                "location": location,
+            },
+            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            tenant_profile=tenant,
+        )
+
+        return jsonify({
+            "success": True,
+            "message": "Complaint raised successfully. Hostel management has been notified.",
+            "complaint": created,
+        }), 201
+
+    except Exception as e:
+        logger.error(f"Error raising tenant complaint: {e}")
+        return jsonify({"error": f"Failed to raise complaint: {str(e)}"}), 500
+
+
+@app.route("/api/tenant/me/complaints/<complaint_id>", methods=["GET"])
+@tenant_required
+def get_tenant_single_complaint(complaint_id):
+    """
+    Retrieve single complaint details for the authenticated tenant.
+    Never exposes internal owner_notes. Enforces strict tenant isolation.
+    """
+    try:
+        tenant = g.current_tenant
+        tenant_filters = [
+            tenant.get("user_code"),
+            tenant.get("email"),
+            tenant.get("auth_user_id"),
+        ]
+        repo = get_complaints_repo()
+        complaint = repo.get_tenant_complaint_by_id(
+            complaint_id=complaint_id,
+            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            tenant_id_filters=tenant_filters,
+        )
+        if not complaint:
+            return jsonify({"error": "Complaint not found or unauthorized access."}), 404
+
+        return jsonify({"complaint": complaint}), 200
+    except Exception as e:
+        logger.error(f"Error fetching tenant complaint {complaint_id}: {e}")
+        return jsonify({"error": "Unable to retrieve complaint details."}), 500
 
 
 # ============================================================================
@@ -1128,6 +1259,10 @@ def get_owner_dashboard():
         repo = get_payment_repo()
         payment_metrics = repo.get_hostel_summary(owner["hostel_id"])
 
+        # Real operational metrics for complaints and maintenance
+        c_repo = get_complaints_repo()
+        ops_metrics = c_repo.get_dashboard_counts(owner["hostel_id"])
+
         return jsonify({
             "hostel": {
                 "id": owner["hostel_id"],
@@ -1152,6 +1287,10 @@ def get_owner_dashboard():
                 "pending_rent": payment_metrics["pending_rent"],
                 "overdue_rent": payment_metrics["overdue_rent"],
                 "monthly_expenses": 0,
+            },
+            "operations": {
+                "open_complaints": ops_metrics["open_complaints"],
+                "maintenance_attention": ops_metrics["maintenance_attention"],
             },
             "recent_enquiries": recent_enquiries,
             "alerts": alerts,
@@ -1275,9 +1414,175 @@ def get_owner_single_payment(payment_id):
         return jsonify({"error": "Unable to retrieve payment details."}), 500
 
 
+# ============================================================================
+# 5. OWNER COMPLAINTS & MAINTENANCE ENDPOINTS (/api/owner/complaints, /api/owner/maintenance)
+# ============================================================================
+
+@app.route("/api/owner/complaints", methods=["GET"])
+@owner_required
+def get_owner_complaints():
+    """
+    List all complaints for the owner's hostel with filters (status, priority, search)
+    and summary metrics (open, assigned, in_progress, resolved_today, high_priority).
+    """
+    try:
+        owner = g.current_owner
+        status_filter = request.args.get("status", "ALL")
+        priority_filter = request.args.get("priority", "ALL")
+        search_query = request.args.get("search", "")
+
+        repo = get_complaints_repo()
+        result = repo.get_owner_complaints(
+            hostel_id=owner["hostel_id"],
+            status_filter=status_filter,
+            priority_filter=priority_filter,
+            search_query=search_query,
+        )
+        return jsonify(result), 200
+    except Exception as e:
+        logger.error(f"Error fetching owner complaints: {e}")
+        return jsonify({"error": "Unable to retrieve complaints at this time."}), 500
+
+
+@app.route("/api/owner/complaints/<complaint_id>", methods=["GET"])
+@owner_required
+def get_owner_single_complaint(complaint_id):
+    """
+    Get full details for a single complaint including internal owner notes
+    and any linked maintenance tasks.
+    """
+    try:
+        owner = g.current_owner
+        repo = get_complaints_repo()
+        complaint = repo.get_owner_complaint_by_id(complaint_id, owner["hostel_id"])
+        if not complaint:
+            return jsonify({"error": "Complaint record not found."}), 404
+        return jsonify({"complaint": complaint}), 200
+    except Exception as e:
+        logger.error(f"Error fetching owner complaint {complaint_id}: {e}")
+        return jsonify({"error": "Unable to retrieve complaint details."}), 500
+
+
+@app.route("/api/owner/complaints/<complaint_id>", methods=["PATCH"])
+@owner_required
+def update_owner_complaint(complaint_id):
+    """
+    Owner updates complaint: status, assigned staff, priority,
+    internal staff notes, or tenant-visible resolution notes.
+    """
+    try:
+        owner = g.current_owner
+        payload = request.get_json(silent=True) or {}
+
+        repo = get_complaints_repo()
+        updated = repo.update_owner_complaint(
+            complaint_id=complaint_id,
+            hostel_id=owner["hostel_id"],
+            update_data=payload,
+        )
+        if not updated:
+            return jsonify({"error": "Complaint not found or update failed."}), 404
+
+        return jsonify({
+            "success": True,
+            "message": "Complaint updated successfully.",
+            "complaint": updated,
+        }), 200
+    except Exception as e:
+        logger.error(f"Error updating complaint {complaint_id}: {e}")
+        return jsonify({"error": f"Failed to update complaint: {str(e)}"}), 500
+
+
+@app.route("/api/owner/maintenance", methods=["GET"])
+@owner_required
+def get_owner_maintenance_tasks():
+    """
+    List all maintenance work orders with filters (status, priority, search)
+    and summary metrics (open, scheduled, in_progress, completed, urgent).
+    """
+    try:
+        owner = g.current_owner
+        status_filter = request.args.get("status", "ALL")
+        priority_filter = request.args.get("priority", "ALL")
+        search_query = request.args.get("search", "")
+
+        repo = get_complaints_repo()
+        result = repo.get_owner_maintenance_tasks(
+            hostel_id=owner["hostel_id"],
+            status_filter=status_filter,
+            priority_filter=priority_filter,
+            search_query=search_query,
+        )
+        return jsonify(result), 200
+    except Exception as e:
+        logger.error(f"Error fetching owner maintenance tasks: {e}")
+        return jsonify({"error": "Unable to retrieve maintenance tasks at this time."}), 500
+
+
+@app.route("/api/owner/maintenance", methods=["POST"])
+@owner_required
+def create_owner_maintenance_task():
+    """
+    Create a maintenance task manually or converted from a tenant complaint.
+    """
+    try:
+        owner = g.current_owner
+        payload = request.get_json(silent=True) or {}
+
+        title = (payload.get("title") or payload.get("issue") or "").strip()
+        location = (payload.get("location") or "").strip()
+
+        if not title:
+            return jsonify({"error": "Task title/issue description is required."}), 400
+        if not location:
+            return jsonify({"error": "Hostel area/location is required."}), 400
+
+        repo = get_complaints_repo()
+        created = repo.create_owner_maintenance_task(
+            data=payload,
+            hostel_id=owner["hostel_id"],
+        )
+        return jsonify({
+            "success": True,
+            "message": "Maintenance task created successfully.",
+            "task": created,
+        }), 201
+    except Exception as e:
+        logger.error(f"Error creating maintenance task: {e}")
+        return jsonify({"error": f"Failed to create maintenance task: {str(e)}"}), 500
+
+
+@app.route("/api/owner/maintenance/<task_id>", methods=["PATCH"])
+@owner_required
+def update_owner_maintenance_task(task_id):
+    """
+    Update maintenance work order status, dates, notes, and completion.
+    """
+    try:
+        owner = g.current_owner
+        payload = request.get_json(silent=True) or {}
+
+        repo = get_complaints_repo()
+        updated = repo.update_owner_maintenance_task(
+            task_id=task_id,
+            hostel_id=owner["hostel_id"],
+            update_data=payload,
+        )
+        if not updated:
+            return jsonify({"error": "Maintenance task not found or update failed."}), 404
+
+        return jsonify({
+            "success": True,
+            "message": "Maintenance task updated successfully.",
+            "task": updated,
+        }), 200
+    except Exception as e:
+        logger.error(f"Error updating maintenance task {task_id}: {e}")
+        return jsonify({"error": f"Failed to update maintenance task: {str(e)}"}), 500
+
 
 # ============================================================================
-# 4. PUBLIC ENQUIRY SUBMISSION ENDPOINT (POST /api/enquiries)
+# 6. PUBLIC ENQUIRY SUBMISSION ENDPOINT (POST /api/enquiries)
 # ============================================================================
 
 @app.route("/api/enquiries", methods=["POST"])

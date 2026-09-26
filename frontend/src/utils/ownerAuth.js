@@ -216,3 +216,120 @@ export async function fetchOwnerSinglePayment(paymentId) {
   return data
 }
 
+/**
+ * Fetch complaints for owner's hostel via GET /api/owner/complaints
+ */
+export async function fetchOwnerComplaints(statusFilter = 'ALL', priorityFilter = 'ALL', searchQuery = '') {
+  const params = new URLSearchParams()
+  if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter)
+  if (priorityFilter && priorityFilter !== 'ALL') params.append('priority', priorityFilter)
+  if (searchQuery) params.append('search', searchQuery)
+
+  const url = `${API_BASE_URL}/api/owner/complaints${params.toString() ? `?${params.toString()}` : ''}`
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve complaints.')
+  }
+  return data
+}
+
+/**
+ * Fetch a single complaint detail for owner via GET /api/owner/complaints/:complaintId
+ */
+export async function fetchOwnerSingleComplaint(complaintId) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/complaints/${complaintId}`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve complaint detail.')
+  }
+  return data
+}
+
+/**
+ * Update complaint by owner via PATCH /api/owner/complaints/:complaintId
+ */
+export async function updateOwnerComplaint(complaintId, payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/complaints/${complaintId}`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update complaint.')
+  }
+  return data
+}
+
+/**
+ * Fetch all maintenance tasks for owner via GET /api/owner/maintenance
+ */
+export async function fetchOwnerMaintenance(statusFilter = 'ALL', priorityFilter = 'ALL', searchQuery = '') {
+  const params = new URLSearchParams()
+  if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter)
+  if (priorityFilter && priorityFilter !== 'ALL') params.append('priority', priorityFilter)
+  if (searchQuery) params.append('search', searchQuery)
+
+  const url = `${API_BASE_URL}/api/owner/maintenance${params.toString() ? `?${params.toString()}` : ''}`
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve maintenance tasks.')
+  }
+  return data
+}
+
+/**
+ * Create a new maintenance task via POST /api/owner/maintenance
+ */
+export async function createOwnerMaintenanceTask(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/maintenance`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to create maintenance task.')
+  }
+  return data
+}
+
+/**
+ * Update a maintenance task via PATCH /api/owner/maintenance/:taskId
+ */
+export async function updateOwnerMaintenanceTask(taskId, payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/maintenance/${taskId}`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update maintenance task.')
+  }
+  return data
+}
+

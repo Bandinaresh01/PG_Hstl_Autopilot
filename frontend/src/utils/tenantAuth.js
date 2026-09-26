@@ -248,3 +248,57 @@ export async function fetchTenantSinglePayment(paymentId) {
   return data
 }
 
+/**
+ * Fetch complaints strictly belonging to the authenticated tenant
+ * via GET /api/tenant/me/complaints
+ */
+export async function fetchTenantComplaints() {
+  const response = await fetch(`${API_BASE_URL}/api/tenant/me/complaints`, {
+    method: 'GET',
+    headers: buildTenantAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve complaints.')
+  }
+  return data
+}
+
+/**
+ * Submit a new tenant complaint via POST /api/tenant/me/complaints
+ */
+export async function submitTenantComplaint(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/tenant/me/complaints`, {
+    method: 'POST',
+    headers: buildTenantAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to submit complaint.')
+  }
+  return data
+}
+
+/**
+ * Fetch a single complaint detail for authenticated tenant
+ * via GET /api/tenant/me/complaints/:complaintId
+ */
+export async function fetchTenantSingleComplaint(complaintId) {
+  const response = await fetch(`${API_BASE_URL}/api/tenant/me/complaints/${complaintId}`, {
+    method: 'GET',
+    headers: buildTenantAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve complaint detail.')
+  }
+  return data
+}
+

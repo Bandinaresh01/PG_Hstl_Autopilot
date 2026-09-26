@@ -154,14 +154,14 @@ export default function TenantDashboardPage() {
         </div>
 
         <div className="tenant-welcome-actions">
-          <button
-            type="button"
+          <Link
+            to="/tenant/complaints"
             className="btn-tenant-action primary"
-            onClick={() => setTicketModalOpen(true)}
+            style={{ textDecoration: 'none' }}
           >
-            <span>🛠️</span>
-            <span>Raise Request</span>
-          </button>
+            <span>⚠️</span>
+            <span>Raise Complaint</span>
+          </Link>
           <button
             type="button"
             className="btn-tenant-action secondary"
@@ -334,6 +334,54 @@ export default function TenantDashboardPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Complaints & Support */}
+        <div className="tenant-card">
+          <div className="tenant-card-header">
+            <div className="tenant-card-title-group">
+              <span className="tenant-card-label">Complaints &amp; Support</span>
+              <h3 className="tenant-card-heading" style={{ color: '#0f172a' }}>
+                {portalData.complaints_summary?.open ?? 0} Open
+              </h3>
+            </div>
+            <div className="tenant-card-icon" style={{ backgroundColor: '#fff7ed', color: '#ea580c' }}>
+              ⚠️
+            </div>
+          </div>
+
+          <div className="tenant-info-list">
+            <div className="tenant-info-row">
+              <span className="tenant-info-key">In Progress</span>
+              <span className="tenant-info-val">{portalData.complaints_summary?.in_progress ?? 0} active</span>
+            </div>
+            <div className="tenant-info-row">
+              <span className="tenant-info-key">Resolved</span>
+              <span className="tenant-info-val" style={{ color: '#16a34a', fontWeight: 600 }}>
+                {portalData.complaints_summary?.resolved ?? 0} completed
+              </span>
+            </div>
+            <div className="tenant-info-row">
+              <span className="tenant-info-key">Total Reported</span>
+              <span className="tenant-info-val">{portalData.complaints_summary?.total ?? 0}</span>
+            </div>
+          </div>
+
+          <Link
+            to="/tenant/complaints"
+            className="btn-tenant-action"
+            style={{
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginTop: '14px',
+              fontWeight: 600,
+              fontSize: '0.8125rem',
+            }}
+          >
+            <span>View Complaints &rarr;</span>
+          </Link>
         </div>
       </div>
 

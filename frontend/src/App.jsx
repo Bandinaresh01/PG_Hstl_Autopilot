@@ -19,6 +19,8 @@ import OwnerPaymentsPage from './pages/owner/OwnerPaymentsPage'
 import OwnerDuesPage from './pages/owner/OwnerDuesPage'
 import OwnerRoomsPage from './pages/owner/OwnerRoomsPage'
 import OwnerTenantsPage from './pages/owner/OwnerTenantsPage'
+import OwnerComplaintsPage from './pages/owner/OwnerComplaintsPage'
+import OwnerMaintenancePage from './pages/owner/OwnerMaintenancePage'
 import OwnerModulePlaceholder from './pages/owner/OwnerModulePlaceholder'
 
 // Tenant Portal imports
@@ -30,6 +32,7 @@ import TenantDashboardPage from './pages/tenant/TenantDashboardPage'
 import TenantStayPage from './pages/tenant/TenantStayPage'
 import TenantPaymentsPage from './pages/tenant/TenantPaymentsPage'
 import TenantServicesPage from './pages/tenant/TenantServicesPage'
+import TenantComplaintsPage from './pages/tenant/TenantComplaintsPage'
 
 import './App.css'
 
@@ -72,24 +75,8 @@ function App() {
               />
             }
           />
-          <Route
-            path="complaints"
-            element={
-              <OwnerModulePlaceholder
-                title="Tenant Complaints & Ticketing"
-                description="Resident support ticketing, plumber/electrician assignments, and resolution tracking."
-              />
-            }
-          />
-          <Route
-            path="maintenance"
-            element={
-              <OwnerModulePlaceholder
-                title="Facility Maintenance"
-                description="Preventive equipment maintenance, vendor work orders, and appliance servicing."
-              />
-            }
-          />
+          <Route path="complaints" element={<OwnerComplaintsPage />} />
+          <Route path="maintenance" element={<OwnerMaintenancePage />} />
           <Route
             path="announcements"
             element={
@@ -136,6 +123,7 @@ function App() {
           <Route path="stay" element={<TenantStayPage />} />
           <Route path="payments" element={<TenantPaymentsPage />} />
           <Route path="services" element={<TenantServicesPage />} />
+          <Route path="complaints" element={<TenantComplaintsPage />} />
         </Route>
       </Route>
 

@@ -647,28 +647,68 @@ export default function OwnerDashboardPage() {
       ================================================== */}
       <section className="dashboard-grid-four-col" style={{ marginTop: '24px' }}>
         {/* Open Complaints */}
-        <div className="dashboard-mini-card">
+        <Link
+          to="/owner/complaints?status=open"
+          className="dashboard-mini-card"
+          style={{ textDecoration: 'none', color: 'inherit' }}
+        >
           <div className="mini-card-head">
             <span className="mini-card-title">Open Complaints</span>
-            <span className="mini-card-badge">0</span>
+            <span
+              className="mini-card-badge"
+              style={{
+                backgroundColor: (dashboardData?.operations?.open_complaints ?? 0) > 0 ? '#eff6ff' : '#f1f5f9',
+                color: (dashboardData?.operations?.open_complaints ?? 0) > 0 ? '#1d4ed8' : '#64748b',
+                fontWeight: 700,
+              }}
+            >
+              {dashboardData?.operations?.open_complaints ?? 0}
+            </span>
           </div>
           <div className="card-empty-state-mini">
             <span className="empty-icon-mini">🛠️</span>
-            <p className="empty-text-mini">No complaints yet.</p>
+            <p className="empty-text-mini">
+              {(dashboardData?.operations?.open_complaints ?? 0) > 0
+                ? `${dashboardData.operations.open_complaints} active complaints need attention.`
+                : 'No open complaints.'}
+            </p>
           </div>
-        </div>
+          <div style={{ padding: '0 14px 10px', fontSize: '0.75rem', color: '#2563eb', fontWeight: 600 }}>
+            Manage Complaints &rarr;
+          </div>
+        </Link>
 
         {/* Maintenance Attention */}
-        <div className="dashboard-mini-card">
+        <Link
+          to="/owner/maintenance"
+          className="dashboard-mini-card"
+          style={{ textDecoration: 'none', color: 'inherit' }}
+        >
           <div className="mini-card-head">
             <span className="mini-card-title">Maintenance Attention</span>
-            <span className="mini-card-badge">0</span>
+            <span
+              className="mini-card-badge"
+              style={{
+                backgroundColor: (dashboardData?.operations?.maintenance_attention ?? 0) > 0 ? '#fff7ed' : '#f1f5f9',
+                color: (dashboardData?.operations?.maintenance_attention ?? 0) > 0 ? '#c2410c' : '#64748b',
+                fontWeight: 700,
+              }}
+            >
+              {dashboardData?.operations?.maintenance_attention ?? 0}
+            </span>
           </div>
           <div className="card-empty-state-mini">
             <span className="empty-icon-mini">🔧</span>
-            <p className="empty-text-mini">No maintenance items.</p>
+            <p className="empty-text-mini">
+              {(dashboardData?.operations?.maintenance_attention ?? 0) > 0
+                ? `${dashboardData.operations.maintenance_attention} tasks scheduled or in progress.`
+                : 'No urgent maintenance items.'}
+            </p>
           </div>
-        </div>
+          <div style={{ padding: '0 14px 10px', fontSize: '0.75rem', color: '#2563eb', fontWeight: 600 }}>
+            Track Work Orders &rarr;
+          </div>
+        </Link>
 
         {/* Today's Visitors */}
         <div className="dashboard-mini-card">
