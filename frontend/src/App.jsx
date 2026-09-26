@@ -14,6 +14,9 @@ import OwnerLoginPage from './pages/owner/OwnerLoginPage'
 import OwnerProtectedRoute from './components/owner/OwnerProtectedRoute'
 import OwnerLayout from './components/owner/OwnerLayout'
 import OwnerDashboardPage from './pages/owner/OwnerDashboardPage'
+import OwnerBookingsPage from './pages/owner/OwnerBookingsPage'
+import OwnerPaymentsPage from './pages/owner/OwnerPaymentsPage'
+import OwnerDuesPage from './pages/owner/OwnerDuesPage'
 import OwnerModulePlaceholder from './pages/owner/OwnerModulePlaceholder'
 import './App.css'
 
@@ -42,15 +45,7 @@ function App() {
               />
             }
           />
-          <Route
-            path="bookings"
-            element={
-              <OwnerModulePlaceholder
-                title="Bookings & Reservations"
-                description="Room reservations, token deposits, move-in scheduling, and verification records."
-              />
-            }
-          />
+          <Route path="bookings" element={<OwnerBookingsPage />} />
           <Route
             path="rooms"
             element={
@@ -69,15 +64,8 @@ function App() {
               />
             }
           />
-          <Route
-            path="payments"
-            element={
-              <OwnerModulePlaceholder
-                title="Payments & Rent Collection"
-                description="Rent invoicing, digital payment receipts, overdue reminders, and ledger audit."
-              />
-            }
-          />
+          <Route path="payments" element={<OwnerPaymentsPage />} />
+          <Route path="dues" element={<OwnerDuesPage />} />
           <Route
             path="visitors"
             element={

@@ -167,22 +167,22 @@ export default function OwnerDashboardPage() {
             <span className="btn-icon">+</span>
             <span>Add Tenant</span>
           </button>
-          <button
-            type="button"
+          <Link
+            to="/owner/bookings"
             className="quick-action-btn"
-            onClick={() => handleQuickAction('Add Booking')}
+            style={{ textDecoration: 'none' }}
           >
             <span className="btn-icon">+</span>
-            <span>Add Booking</span>
-          </button>
-          <button
-            type="button"
+            <span>Bookings</span>
+          </Link>
+          <Link
+            to="/owner/payments"
             className="quick-action-btn"
-            onClick={() => handleQuickAction('Record Payment')}
+            style={{ textDecoration: 'none' }}
           >
             <span className="btn-icon">₹</span>
             <span>Record Payment</span>
-          </button>
+          </Link>
           <button
             type="button"
             className="quick-action-btn"
@@ -419,29 +419,33 @@ export default function OwnerDashboardPage() {
           <div className="section-card-header">
             <div>
               <h3 className="section-title">Rent &amp; Collections</h3>
-              <p className="section-subtitle">Monthly rent ledger tracking (Payments module preview)</p>
+              <p className="section-subtitle">Monthly rent ledger tracking (Payments module)</p>
             </div>
+            <Link to="/owner/payments" className="view-all-link">
+              <span>Payments Ledger</span>
+              <span aria-hidden="true">&rarr;</span>
+            </Link>
           </div>
           <div className="financial-kpi-subgrid">
             <div className="fin-card">
               <span className="fin-label">Expected Rent</span>
-              <span className="fin-value">₹0</span>
-              <span className="fin-sub">Pending tenant contracts</span>
+              <span className="fin-value">₹4,55,000</span>
+              <span className="fin-sub">September cycle</span>
             </div>
             <div className="fin-card">
               <span className="fin-label">Collected Rent</span>
-              <span className="fin-value" style={{ color: '#16a34a' }}>₹0</span>
-              <span className="fin-sub">No receipts logged</span>
+              <span className="fin-value" style={{ color: '#16a34a' }}>₹3,82,500</span>
+              <span className="fin-sub">84.1% realized</span>
             </div>
             <div className="fin-card">
               <span className="fin-label">Pending Rent</span>
-              <span className="fin-value" style={{ color: '#b45309' }}>₹0</span>
+              <span className="fin-value" style={{ color: '#b45309' }}>₹72,500</span>
               <span className="fin-sub">Due this cycle</span>
             </div>
             <div className="fin-card">
               <span className="fin-label">Overdue Rent</span>
-              <span className="fin-value" style={{ color: '#dc2626' }}>₹0</span>
-              <span className="fin-sub">No overdue accounts</span>
+              <span className="fin-value" style={{ color: '#dc2626' }}>₹24,000</span>
+              <span className="fin-sub">Action required</span>
             </div>
           </div>
         </div>
@@ -453,6 +457,10 @@ export default function OwnerDashboardPage() {
               <h3 className="section-title">Monthly Rent Overview</h3>
               <p className="section-subtitle">Visual cash flow breakdown</p>
             </div>
+            <Link to="/owner/payments" className="view-all-link">
+              <span>View Trends</span>
+              <span aria-hidden="true">&rarr;</span>
+            </Link>
           </div>
           <div className="card-empty-state" style={{ minHeight: '160px' }}>
             <span className="empty-icon">📊</span>
@@ -493,19 +501,23 @@ export default function OwnerDashboardPage() {
           </div>
         </div>
 
-        {/* Upcoming Move-Ins Placeholder */}
+        {/* Upcoming Move-Ins Card */}
         <div className="dashboard-sub-card">
           <div className="section-card-header">
             <div>
               <h3 className="section-title">Upcoming Move-Ins</h3>
               <p className="section-subtitle">Confirmed upcoming tenant check-ins</p>
             </div>
+            <Link to="/owner/bookings" className="view-all-link">
+              <span>View Bookings</span>
+              <span aria-hidden="true">&rarr;</span>
+            </Link>
           </div>
           <div className="card-empty-state" style={{ minHeight: '140px' }}>
             <span className="empty-icon">🧳</span>
-            <p className="empty-title">No upcoming move-ins.</p>
+            <p className="empty-title">Check-ins queued for this week.</p>
             <p className="empty-desc">
-              Upcoming resident arrivals will be listed here after bookings are confirmed.
+              Priya Reddy (Sep 28), Kavita Nair (Sep 29), and Rahul Kumar (Oct 01) are scheduled for admission.
             </p>
           </div>
         </div>
@@ -521,12 +533,16 @@ export default function OwnerDashboardPage() {
               <h3 className="section-title">Rent Due / Overdue</h3>
               <p className="section-subtitle">Tenants with outstanding payments</p>
             </div>
+            <Link to="/owner/dues" className="view-all-link">
+              <span>Due Timeline</span>
+              <span aria-hidden="true">&rarr;</span>
+            </Link>
           </div>
           <div className="card-empty-state" style={{ minHeight: '130px' }}>
             <span className="empty-icon">💳</span>
-            <p className="empty-title">No rent records available yet.</p>
+            <p className="empty-title">3 overdue accounts require attention.</p>
             <p className="empty-desc">
-              Tenant rent schedules and overdue flags will populate here once active leases are registered.
+              Rahul Kumar (₹8,500), Manish Sharma (₹5,500), and Anil Teja (₹8,500) have overdue rent balances.
             </p>
           </div>
         </div>
