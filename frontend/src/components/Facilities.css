@@ -205,6 +205,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  min-width: 0;
 }
 
 .why-choose-label-wrapper {
@@ -281,6 +282,7 @@
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .why-btn {
@@ -294,6 +296,8 @@
   text-decoration: none;
   transition: all 0.2s ease;
   white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .why-btn-primary {
@@ -368,12 +372,6 @@
   .why-choose-content-col {
     padding: 2.25rem 1.5rem;
   }
-}
-
-@media (max-width: 520px) {
-  .facilities-grid {
-    grid-template-columns: 1fr;
-  }
 
   .why-choose-actions {
     flex-direction: column;
@@ -383,6 +381,44 @@
 
   .why-btn {
     width: 100%;
+    white-space: normal;
+    padding-inline: 1.1rem;
+  }
+
+  .why-choose-actions,
+  .why-btn {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .facilities-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .why-choose-card {
+    border-radius: 1.25rem;
+  }
+
+  .why-choose-image-col {
+    min-height: 240px;
+    max-height: 300px;
+  }
+
+  .why-choose-badge {
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .why-choose-content-col {
+    padding: 2rem 1.25rem;
+  }
+
+  .why-btn {
+    padding-inline: 1rem;
   }
 }
 
