@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { initialTenants, calculateStayDuration, getTenantStats } from '../../data/tenantsData'
 import { initialRooms } from '../../data/roomsData'
+import { createTenantAccount } from '../../utils/ownerAuth'
 import './OwnerTenantsPage.css'
 import './OwnerRoomsPage.css'
 import './OwnerDashboardPage.css'
@@ -17,6 +18,26 @@ export default function OwnerTenantsPage() {
   const [selectedTenant, setSelectedTenant] = useState(null)
   const [addTenantModalOpen, setAddTenantModalOpen] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
+
+  // Tenant Account Creation Confirmation Modal
+  const [accountConfirmTenant, setAccountConfirmTenant] = useState(null)
+  const [confirmName, setConfirmName] = useState('')
+  const [confirmEmail, setConfirmEmail] = useState('')
+  const [confirmPhone, setConfirmPhone] = useState('')
+  const [confirmRoom, setConfirmRoom] = useState('')
+  const [confirmBed, setConfirmBed] = useState('')
+  const [confirmMoveIn, setConfirmMoveIn] = useState('')
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false)
+  const [accountCreateError, setAccountCreateError] = useState('')
+
+  // Account Created Result Modal
+  const [createdAccountResult, setCreatedAccountResult] = useState(null)
+  const [showTempPass, setShowTempPass] = useState(false)
+  const [copiedPass, setCopiedPass] = useState(false)
+  const [copiedAll, setCopiedAll] = useState(false)
+
+  // In-memory track of created accounts: { [tenantId]: accountData }
+  const [createdAccountIds, setCreatedAccountIds] = useState({})
 
   // New Tenant Form state
   const [newTenantName, setNewTenantName] = useState('')
@@ -143,6 +164,94 @@ export default function OwnerTenantsPage() {
     setTimeout(() => {
       setToastMessage('')
     }, 3500)
+  }
+
+  // Account Creation Handlers
+  const openAccountModal = (t) => {
+    setAccountConfirmTenant(t)
+    setConfirmName(t.name || '')
+    setConfirmEmail(t.email || '')
+    setConfirmPhone(t.phone || '')
+    setConfirmRoom(t.roomNumber || '')
+    setConfirmBed(t.bedCode || '')
+    setConfirmMoveIn(t.moveInDate || '')
+    setAccountCreateError('')
+  }
+
+  const handleConfirmAccountCreate = async (e) => {
+    e.preventDefault()
+    if (!confirmEmail.trim() || !confirmEmail.includes('@')) {
+      setAccountCreateError('Please enter a valid email address for tenant login.')
+      return
+    }
+    setIsCreatingAccount(true)
+    setAccountCreateError('')
+
+    try {
+      const payload = {
+        name: confirmName.trim(),
+        email: confirmEmail.trim().toLowerCase(),
+        phone: confirmPhone.trim(),
+        roomNumber: confirmRoom,
+        bedCode: confirmBed,
+        moveInDate: confirmMoveIn,
+        emergencyContact: accountConfirmTenant.emergencyContact || '',
+        monthlyRent: accountConfirmTenant.monthlyRent || 8500,
+      }
+
+      const data = await createTenantAccount(accountConfirmTenant.id, payload)
+
+      // Store in created map
+      setCreatedAccountIds((prev) => ({
+        ...prev,
+        [accountConfirmTenant.id]: data.account,
+      }))
+
+      // Close confirm modal, open result screen
+      setAccountConfirmTenant(null)
+      setCreatedAccountResult(data.account)
+      setShowTempPass(false)
+      setCopiedPass(false)
+      setCopiedAll(false)
+
+      setToastMessage(`Login credentials generated for ${data.account.name}!`)
+      setTimeout(() => setToastMessage(''), 4000)
+    } catch (err) {
+      setAccountCreateError(err.message || 'Failed to create tenant login account.')
+    } finally {
+      setIsCreatingAccount(false)
+    }
+  }
+
+  const handleCopyPassword = (pass) => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(pass)
+    }
+    setCopiedPass(true)
+    setTimeout(() => setCopiedPass(false), 2500)
+  }
+
+  const handleCopyAllDetails = (account) => {
+    const portalUrl = `${window.location.origin}/tenant/login`
+    const text = `🏡 *Welcome to UrbanNest PG & Hostel Resident Portal*
+
+Hello ${account.name},
+Your resident portal account has been activated!
+
+*Login Details:*
+• Portal URL: ${portalUrl}
+• Login Email: ${account.email}
+• Temporary Password: ${account.temporary_password}
+• Resident ID: ${account.tenant_id}
+• Assigned Room: ${account.room_number} (${account.bed_code})
+
+*Note:* You will be prompted to set your personal permanent password upon your first login. Please keep your credentials secure!`
+
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text)
+    }
+    setCopiedAll(true)
+    setTimeout(() => setCopiedAll(false), 3000)
   }
 
   return (
@@ -481,6 +590,27 @@ export default function OwnerTenantsPage() {
                           >
                             Profile
                           </button>
+                          {createdAccountIds[t.id] ? (
+                            <button
+                              type="button"
+                              className="btn-table-action"
+                              style={{ backgroundColor: '#f0fdf4', color: '#166534', borderColor: '#bbf7d0', fontWeight: 600 }}
+                              onClick={() => setCreatedAccountResult(createdAccountIds[t.id])}
+                              title="View Portal Credentials"
+                            >
+                              🔑 Credentials
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn-table-action"
+                              style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe', fontWeight: 600 }}
+                              onClick={() => openAccountModal(t)}
+                              title="Generate Tenant Portal Login Access"
+                            >
+                              ⚡ Create Login
+                            </button>
+                          )}
                           {t.status === 'PENDING' && (
                             <button
                               type="button"
@@ -666,6 +796,67 @@ export default function OwnerTenantsPage() {
                 </div>
               </div>
 
+              {/* Tenant Portal Login Access */}
+              <div
+                style={{
+                  border: '1px solid #bbf7d0',
+                  borderRadius: '10px',
+                  backgroundColor: '#f0fdf4',
+                  padding: '14px 16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h4 className="modal-section-title" style={{ margin: 0, color: '#166534' }}>
+                      🔑 Tenant Portal Login Access
+                    </h4>
+                    <p style={{ margin: '4px 0 0', fontSize: '0.825rem', color: '#15803d' }}>
+                      Allows resident to access their isolated personal portal, view Wi-Fi info, rent invoices, and raise tickets.
+                    </p>
+                  </div>
+                  {createdAccountIds[selectedTenant.id] ? (
+                    <span className="login-access-badge created">
+                      ✓ Login Active
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="quick-action-btn primary"
+                      style={{ fontSize: '0.8125rem', padding: '6px 14px' }}
+                      onClick={() => openAccountModal(selectedTenant)}
+                    >
+                      ⚡ Create Tenant Login
+                    </button>
+                  )}
+                </div>
+                {createdAccountIds[selectedTenant.id] && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      paddingTop: '8px',
+                      borderTop: '1px solid #dcfce7',
+                    }}
+                  >
+                    <span style={{ fontSize: '0.825rem', color: '#14532d' }}>
+                      User ID: <strong>{createdAccountIds[selectedTenant.id].tenant_id}</strong> • Login Email: <strong>{createdAccountIds[selectedTenant.id].email}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-table-action"
+                      style={{ fontSize: '0.75rem', padding: '4px 10px', backgroundColor: '#ffffff' }}
+                      onClick={() => setCreatedAccountResult(createdAccountIds[selectedTenant.id])}
+                    >
+                      View Login Details
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Notes */}
               {selectedTenant.notes && (
                 <div>
@@ -676,6 +867,15 @@ export default function OwnerTenantsPage() {
             </div>
 
             <div className="modal-footer">
+              {!createdAccountIds[selectedTenant.id] && (
+                <button
+                  type="button"
+                  className="quick-action-btn primary"
+                  onClick={() => openAccountModal(selectedTenant)}
+                >
+                  ⚡ Create Tenant Login
+                </button>
+              )}
               {selectedTenant.status === 'PENDING' && (
                 <button
                   type="button"
@@ -706,6 +906,297 @@ export default function OwnerTenantsPage() {
                 onClick={() => setSelectedTenant(null)}
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================
+          6B. CONFIRM CREATE TENANT ACCOUNT MODAL
+      ================================================== */}
+      {accountConfirmTenant && (
+        <div className="modal-overlay" onClick={() => !isCreatingAccount && setAccountConfirmTenant(null)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title-group">
+                <h3 className="modal-title">Create Tenant Portal Login</h3>
+                <span className="badge-tenant-status active">Approved Resident</span>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => !isCreatingAccount && setAccountConfirmTenant(null)}
+                aria-label="Close"
+                disabled={isCreatingAccount}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmAccountCreate}>
+              <div className="modal-body">
+                <p style={{ margin: '0 0 16px', fontSize: '0.875rem', color: '#475569', lineHeight: 1.5 }}>
+                  Provision an official Supabase Auth login account for <strong>{accountConfirmTenant.name}</strong>.
+                  The tenant will receive login credentials and be guided through first-time onboarding.
+                </p>
+
+                {accountCreateError && (
+                  <div
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      backgroundColor: '#fef2f2',
+                      border: '1px solid #fecaca',
+                      color: '#b91c1c',
+                      fontSize: '0.875rem',
+                      marginBottom: '16px',
+                    }}
+                  >
+                    ⚠️ {accountCreateError}
+                  </div>
+                )}
+
+                <div className="assign-form-row">
+                  <div className="assign-form-group">
+                    <label>Tenant ID / Code</label>
+                    <input
+                      type="text"
+                      className="assign-form-input"
+                      value={accountConfirmTenant.id}
+                      disabled
+                      style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed' }}
+                    />
+                  </div>
+                  <div className="assign-form-group">
+                    <label>Full Name *</label>
+                    <input
+                      type="text"
+                      className="assign-form-input"
+                      value={confirmName}
+                      onChange={(e) => setConfirmName(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="assign-form-row">
+                  <div className="assign-form-group">
+                    <label>Login Email (Primary Identifier) *</label>
+                    <input
+                      type="email"
+                      className="assign-form-input"
+                      value={confirmEmail}
+                      onChange={(e) => setConfirmEmail(e.target.value)}
+                      placeholder="resident@example.com"
+                      required
+                    />
+                  </div>
+                  <div className="assign-form-group">
+                    <label>Contact Phone *</label>
+                    <input
+                      type="tel"
+                      className="assign-form-input"
+                      value={confirmPhone}
+                      onChange={(e) => setConfirmPhone(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="assign-form-row">
+                  <div className="assign-form-group">
+                    <label>Assigned Room</label>
+                    <input
+                      type="text"
+                      className="assign-form-input"
+                      value={confirmRoom}
+                      disabled
+                      style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed' }}
+                    />
+                  </div>
+                  <div className="assign-form-group">
+                    <label>Bed Code</label>
+                    <input
+                      type="text"
+                      className="assign-form-input"
+                      value={confirmBed}
+                      disabled
+                      style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed' }}
+                    />
+                  </div>
+                </div>
+
+                <div className="assign-form-group">
+                  <label>Move-In Date</label>
+                  <input
+                    type="date"
+                    className="assign-form-input"
+                    value={confirmMoveIn}
+                    disabled
+                    style={{ backgroundColor: '#f1f5f9', cursor: 'not-allowed' }}
+                  />
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: '#eff6ff',
+                    border: '1px solid #bfdbfe',
+                    borderRadius: '8px',
+                    padding: '12px 14px',
+                    fontSize: '0.825rem',
+                    color: '#1e40af',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  🔒 <strong>Secure Credential Handover:</strong> A temporary password will be created securely in Supabase Auth.
+                  You will be shown the generated credentials on the next screen to copy and send via WhatsApp/SMS.
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-table-action"
+                  onClick={() => setAccountConfirmTenant(null)}
+                  disabled={isCreatingAccount}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="quick-action-btn primary"
+                  disabled={isCreatingAccount}
+                >
+                  {isCreatingAccount ? 'Provisioning Account...' : 'Generate Access & Credentials'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================
+          6C. ACCOUNT CREATED RESULT SCREEN MODAL
+      ================================================== */}
+      {createdAccountResult && (
+        <div className="modal-overlay" onClick={() => setCreatedAccountResult(null)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '560px' }}>
+            <div className="modal-header" style={{ borderBottomColor: '#bbf7d0', backgroundColor: '#f0fdf4' }}>
+              <div className="modal-title-group">
+                <h3 className="modal-title" style={{ color: '#166534' }}>
+                  ✓ Tenant Account Created
+                </h3>
+                <span className="login-access-badge created">Active</span>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setCreatedAccountResult(null)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="account-result-card">
+                <div className="account-result-row">
+                  <span className="account-result-key">Tenant Code:</span>
+                  <span className="account-result-val">{createdAccountResult.tenant_id}</span>
+                </div>
+                <div className="account-result-row">
+                  <span className="account-result-key">Full Name:</span>
+                  <span className="account-result-val">{createdAccountResult.name}</span>
+                </div>
+                <div className="account-result-row">
+                  <span className="account-result-key">Login Email:</span>
+                  <span className="account-result-val">{createdAccountResult.email}</span>
+                </div>
+                <div className="account-result-row">
+                  <span className="account-result-key">Room &amp; Bed:</span>
+                  <span className="account-result-val">
+                    {createdAccountResult.room_number} • {createdAccountResult.bed_code}
+                  </span>
+                </div>
+                <div className="account-result-row">
+                  <span className="account-result-key">Portal URL:</span>
+                  <span className="account-result-val" style={{ fontSize: '0.8rem' }}>
+                    {window.location.origin}/tenant/login
+                  </span>
+                </div>
+              </div>
+
+              {/* Temporary Password Box */}
+              <div style={{ marginTop: '16px' }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    color: '#334155',
+                    marginBottom: '6px',
+                  }}
+                >
+                  Temporary Password (One-Time Demo Access):
+                </label>
+                <div className="temp-password-box">
+                  <span className="temp-password-text">
+                    {showTempPass ? createdAccountResult.temporary_password : '••••••••••••'}
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="btn-table-action"
+                      style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                      onClick={() => setShowTempPass(!showTempPass)}
+                    >
+                      {showTempPass ? '🙈 Hide' : '👁️ Reveal'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-copy-creds"
+                      onClick={() => handleCopyPassword(createdAccountResult.temporary_password)}
+                    >
+                      {copiedPass ? '✓ Copied' : '📋 Copy Password'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Security Instruction Card */}
+              <div
+                style={{
+                  marginTop: '16px',
+                  backgroundColor: '#fffbeb',
+                  border: '1px solid #fde68a',
+                  borderRadius: '8px',
+                  padding: '12px 14px',
+                  fontSize: '0.825rem',
+                  color: '#92400e',
+                  lineHeight: 1.5,
+                }}
+              >
+                ℹ️ <strong>First-Time Onboarding Required:</strong> When the resident signs in with this temporary password,
+                they will be required to set their permanent personal password and agree to hostel guidelines before gaining access.
+              </div>
+            </div>
+
+            <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+              <button
+                type="button"
+                className="btn-copy-creds"
+                style={{ padding: '8px 16px', fontSize: '0.875rem' }}
+                onClick={() => handleCopyAllDetails(createdAccountResult)}
+              >
+                {copiedAll ? '✓ All Details Copied to Clipboard!' : '📋 Copy Login Details (WhatsApp / SMS)'}
+              </button>
+              <button
+                type="button"
+                className="btn-table-action"
+                onClick={() => setCreatedAccountResult(null)}
+              >
+                Done
               </button>
             </div>
           </div>

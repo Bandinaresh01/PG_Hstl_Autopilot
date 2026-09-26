@@ -20,6 +20,17 @@ import OwnerDuesPage from './pages/owner/OwnerDuesPage'
 import OwnerRoomsPage from './pages/owner/OwnerRoomsPage'
 import OwnerTenantsPage from './pages/owner/OwnerTenantsPage'
 import OwnerModulePlaceholder from './pages/owner/OwnerModulePlaceholder'
+
+// Tenant Portal imports
+import TenantLoginPage from './pages/tenant/TenantLoginPage'
+import TenantOnboardingPage from './pages/tenant/TenantOnboardingPage'
+import TenantProtectedRoute from './components/tenant/TenantProtectedRoute'
+import TenantLayout from './components/tenant/TenantLayout'
+import TenantDashboardPage from './pages/tenant/TenantDashboardPage'
+import TenantStayPage from './pages/tenant/TenantStayPage'
+import TenantPaymentsPage from './pages/tenant/TenantPaymentsPage'
+import TenantServicesPage from './pages/tenant/TenantServicesPage'
+
 import './App.css'
 
 function App() {
@@ -110,7 +121,26 @@ function App() {
       </Route>
 
       {/* ==================================================
-          3. PUBLIC WEBSITE ROUTES (PublicLayout)
+          3. TENANT AUTHENTICATION & LOGIN (Standalone)
+      ================================================== */}
+      <Route path="/tenant/login" element={<TenantLoginPage />} />
+
+      {/* ==================================================
+          4. TENANT PORTAL & ONBOARDING (Protected Tenant Routes)
+      ================================================== */}
+      <Route element={<TenantProtectedRoute />}>
+        <Route path="/tenant/onboarding" element={<TenantOnboardingPage />} />
+        <Route path="/tenant" element={<TenantLayout />}>
+          <Route index element={<Navigate to="/tenant/dashboard" replace />} />
+          <Route path="dashboard" element={<TenantDashboardPage />} />
+          <Route path="stay" element={<TenantStayPage />} />
+          <Route path="payments" element={<TenantPaymentsPage />} />
+          <Route path="services" element={<TenantServicesPage />} />
+        </Route>
+      </Route>
+
+      {/* ==================================================
+          5. PUBLIC WEBSITE ROUTES (PublicLayout)
       ================================================== */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<HomePage />} />

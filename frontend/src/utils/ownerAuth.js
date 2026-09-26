@@ -136,3 +136,83 @@ export async function fetchOwnerDashboard() {
 
   return data
 }
+
+/**
+ * Owner-only action: create a Supabase Auth login account for an approved tenant
+ * via POST /api/owner/tenants/:tenantId/create-account
+ */
+export async function createTenantAccount(tenantId, payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/tenants/${tenantId}/create-account`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to create tenant account.')
+  }
+
+  return data
+}
+
+/**
+ * Fetch all payments for owner's hostel via GET /api/owner/payments
+ */
+export async function fetchOwnerPayments(statusFilter = 'ALL', searchQuery = '', tenantId = '') {
+  const params = new URLSearchParams()
+  if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter)
+  if (searchQuery) params.append('search', searchQuery)
+  if (tenantId) params.append('tenant_id', tenantId)
+
+  const url = `${API_BASE_URL}/api/owner/payments${params.toString() ? `?${params.toString()}` : ''}`
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve owner payments.')
+  }
+  return data
+}
+
+/**
+ * Record or update a payment/charge via POST /api/owner/payments
+ */
+export async function recordOwnerPayment(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/payments`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to record payment.')
+  }
+  return data
+}
+
+/**
+ * Get single payment details via GET /api/owner/payments/:paymentId
+ */
+export async function fetchOwnerSinglePayment(paymentId) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/payments/${paymentId}`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve payment details.')
+  }
+  return data
+}
+

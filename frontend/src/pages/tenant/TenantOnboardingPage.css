@@ -1,0 +1,174 @@
+/* ==================================================
+   Tenant First-Time Onboarding Styles
+   UrbanNest Hostel Operations CRM
+================================================== */
+
+.tenant-onboarding-view {
+  min-height: 100vh;
+  background-color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 16px 60px;
+}
+
+.onboarding-container {
+  width: 100%;
+  max-width: 680px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.onboarding-header-card {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  border-radius: 16px;
+  padding: 32px 28px;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15);
+}
+
+.onboarding-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background-color: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #34d399;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.onboarding-title {
+  font-size: 1.65rem;
+  font-weight: 700;
+  margin: 0;
+  color: #ffffff;
+  line-height: 1.25;
+}
+
+.onboarding-subtitle {
+  font-size: 0.925rem;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Steps progress indicators */
+.onboarding-steps-bar {
+  display: flex;
+  gap: 8px;
+}
+
+.step-indicator {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background-color: #e2e8f0;
+  transition: background-color 0.2s ease;
+}
+
+.step-indicator.active {
+  background-color: #10b981;
+}
+
+/* Onboarding Form Card */
+.onboarding-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.onboarding-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 12px;
+}
+
+.onboarding-section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.onboarding-section-desc {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Room verification badge in onboarding */
+.resident-verify-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.verify-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.verify-label {
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.verify-val {
+  font-size: 0.925rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* Rules checklist */
+.rules-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.rule-check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.rule-check-item input[type='checkbox'] {
+  margin-top: 3px;
+  accent-color: #10b981;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
