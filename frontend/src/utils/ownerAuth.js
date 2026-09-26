@@ -333,3 +333,20 @@ export async function updateOwnerMaintenanceTask(taskId, payload) {
   return data
 }
 
+/**
+ * Fetch a single maintenance task by ID via GET /api/owner/maintenance/:taskId
+ */
+export async function fetchOwnerSingleMaintenance(taskId) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/maintenance/${taskId}`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve maintenance task.')
+  }
+  return data
+}
+

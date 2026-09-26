@@ -1552,6 +1552,25 @@ def create_owner_maintenance_task():
         return jsonify({"error": f"Failed to create maintenance task: {str(e)}"}), 500
 
 
+@app.route("/api/owner/maintenance/<task_id>", methods=["GET"])
+@owner_required
+def get_owner_single_maintenance_task(task_id):
+    """
+    Get a single maintenance work order for owner with linked complaint details.
+    """
+    try:
+        owner = g.current_owner
+        repo = get_complaints_repo()
+        task = repo.get_owner_maintenance_by_id(task_id, owner["hostel_id"])
+        if not task:
+            return jsonify({"error": "Maintenance task not found."}), 404
+
+        return jsonify({"task": task}), 200
+    except Exception as e:
+        logger.error(f"Error fetching maintenance task {task_id}: {e}")
+        return jsonify({"error": f"Failed to fetch maintenance task: {str(e)}"}), 500
+
+
 @app.route("/api/owner/maintenance/<task_id>", methods=["PATCH"])
 @owner_required
 def update_owner_maintenance_task(task_id):

@@ -820,6 +820,23 @@ class ComplaintsMaintenanceRepository:
 
         return None
 
+    def get_owner_maintenance_by_id(self, task_id: str, hostel_id: str) -> dict:
+        """Find a single maintenance task for owner, including linked complaint details if any."""
+        records = self._read_maintenance()
+        complaints = self._read_complaints()
+        complaint_map = {c.get("id"): c for c in complaints}
+
+        for r in records:
+            if r.get("id") == task_id:
+                if hostel_id and r.get("hostel_id") != hostel_id:
+                    return None
+                item = dict(r)
+                cid = item.get("complaint_id")
+                if cid and cid in complaint_map:
+                    item["complaint"] = complaint_map[cid]
+                return item
+        return None
+
     # =========================================================================
     # DASHBOARD COUNTS
     # =========================================================================

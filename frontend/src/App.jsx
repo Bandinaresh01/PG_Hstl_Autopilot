@@ -124,6 +124,7 @@ function App() {
           <Route path="payments" element={<TenantPaymentsPage />} />
           <Route path="services" element={<TenantServicesPage />} />
           <Route path="complaints" element={<TenantComplaintsPage />} />
+          <Route path="complaints/:complaintId" element={<TenantComplaintsPage />} />
         </Route>
       </Route>
 

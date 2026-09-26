@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useTenantAuth, fetchTenantComplaints, submitTenantComplaint } from '../../utils/tenantAuth'
 import './TenantComplaintsPage.css'
 
@@ -27,10 +28,13 @@ const AREA_OPTIONS = [
 
 export default function TenantComplaintsPage() {
   const { tenantUser } = useTenantAuth()
+  const { complaintId } = useParams()
+  const navigate = useNavigate()
 
   const [complaints, setComplaints] = useState([])
   const [summary, setSummary] = useState({ open: 0, in_progress: 0, resolved: 0, total: 0 })
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [toastMessage, setToastMessage] = useState('')
 
   // Filters & search
@@ -69,6 +73,30 @@ export default function TenantComplaintsPage() {
   useEffect(() => {
     loadComplaints()
   }, [loadComplaints])
+
+  // Handle direct link with :complaintId
+  useEffect(() => {
+    if (complaintId && complaints.length > 0) {
+      const match = complaints.find((c) => c.id === complaintId)
+      if (match) {
+        setSelectedComplaint(match)
+      }
+    }
+  }, [complaintId, complaints])
+
+  const openDetailModal = (complaint) => {
+    setSelectedComplaint(complaint)
+    if (complaint?.id) {
+      navigate(`/tenant/complaints/${complaint.id}`)
+    }
+  }
+
+  const closeDetailModal = () => {
+    setSelectedComplaint(null)
+    if (complaintId) {
+      navigate('/tenant/complaints', { replace: true })
+    }
+  }
 
   const showToast = (msg) => {
     setToastMessage(msg)
@@ -233,6 +261,12 @@ export default function TenantComplaintsPage() {
           </button>
         </div>
       </div>
+
+      {error && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', fontSize: '0.9rem' }}>
+          ⚠️ {error}
+        </div>
+      )}
 
       {/* 2. KPI Summary Cards */}
       <section className="complaints-kpi-grid">
@@ -403,7 +437,7 @@ export default function TenantComplaintsPage() {
                   <button
                     type="button"
                     className="btn-view-complaint"
-                    onClick={() => setSelectedComplaint(c)}
+                    onClick={() => openDetailModal(c)}
                   >
                     View Status &amp; Timeline &rarr;
                   </button>
@@ -577,7 +611,7 @@ export default function TenantComplaintsPage() {
           6. VIEW COMPLAINT DETAILS MODAL
       ================================================== */}
       {selectedComplaint && (
-        <div className="modal-overlay" onClick={() => setSelectedComplaint(null)}>
+        <div className="modal-overlay" onClick={closeDetailModal}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -587,7 +621,7 @@ export default function TenantComplaintsPage() {
               <button
                 type="button"
                 className="btn-close-modal"
-                onClick={() => setSelectedComplaint(null)}
+                onClick={closeDetailModal}
               >
                 &times;
               </button>
@@ -705,7 +739,7 @@ export default function TenantComplaintsPage() {
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={() => setSelectedComplaint(null)}
+                onClick={closeDetailModal}
               >
                 Close
               </button>
