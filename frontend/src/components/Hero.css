@@ -19,6 +19,7 @@
 .hero-content {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 /* Location Badge */
@@ -72,6 +73,7 @@
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .hero-btn {
@@ -86,6 +88,8 @@
   text-decoration: none;
   transition: all 0.2s ease;
   white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .hero-btn-primary {
@@ -153,6 +157,7 @@
   justify-content: center;
   align-items: center;
   width: 100%;
+  min-width: 0;
 }
 
 .hero-composition {
@@ -345,6 +350,17 @@
 
   .hero-btn {
     width: 100%;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .hero-actions,
+  .hero-btn {
+    max-width: 100%;
+  }
+
+  .hero-btn svg {
+    flex-shrink: 0;
   }
 
   .hero-highlights {
