@@ -155,12 +155,20 @@ export default function TenantDashboardPage() {
 
         <div className="tenant-welcome-actions">
           <Link
-            to="/tenant/complaints"
+            to="/tenant/visitors"
             className="btn-tenant-action primary"
             style={{ textDecoration: 'none' }}
           >
+            <span>🚪</span>
+            <span>Visitor Pass</span>
+          </Link>
+          <Link
+            to="/tenant/complaints"
+            className="btn-tenant-action secondary"
+            style={{ textDecoration: 'none' }}
+          >
             <span>⚠️</span>
-            <span>Raise Complaint</span>
+            <span>Complaints</span>
           </Link>
           <button
             type="button"
@@ -381,6 +389,62 @@ export default function TenantDashboardPage() {
             }}
           >
             <span>View Complaints &rarr;</span>
+          </Link>
+        </div>
+
+        {/* Visitor Passes & Gate Access */}
+        <div className="tenant-card">
+          <div className="tenant-card-header">
+            <div className="tenant-card-title-group">
+              <span className="tenant-card-label">Visitor Passes</span>
+              <h3 className="tenant-card-heading">
+                {portalData.visitors_summary?.inside > 0
+                  ? `${portalData.visitors_summary.inside} Guest Inside`
+                  : portalData.visitors_summary?.approved > 0
+                  ? `${portalData.visitors_summary.approved} Active Pass`
+                  : 'Gate Access'}
+              </h3>
+            </div>
+            <div className="tenant-card-icon" style={{ backgroundColor: '#eff6ff', color: '#2563eb' }}>
+              🚪
+            </div>
+          </div>
+
+          <div className="tenant-info-list">
+            <div className="tenant-info-row">
+              <span className="tenant-info-key">Currently Inside</span>
+              <span className="tenant-info-val" style={{ color: '#2563eb', fontWeight: 700 }}>
+                {portalData.visitors_summary?.inside ?? 0}
+              </span>
+            </div>
+            <div className="tenant-info-row">
+              <span className="tenant-info-key">Approved Passes</span>
+              <span className="tenant-info-val" style={{ color: '#16a34a', fontWeight: 600 }}>
+                {portalData.visitors_summary?.approved ?? 0}
+              </span>
+            </div>
+            <div className="tenant-info-row">
+              <span className="tenant-info-key">Pending Approval</span>
+              <span className="tenant-info-val">
+                {portalData.visitors_summary?.pending ?? 0}
+              </span>
+            </div>
+          </div>
+
+          <Link
+            to="/tenant/visitors"
+            className="btn-tenant-action"
+            style={{
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginTop: '14px',
+              fontWeight: 600,
+              fontSize: '0.8125rem',
+            }}
+          >
+            <span>Manage Passes &rarr;</span>
           </Link>
         </div>
       </div>

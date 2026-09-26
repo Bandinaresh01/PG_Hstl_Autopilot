@@ -710,17 +710,39 @@ export default function OwnerDashboardPage() {
           </div>
         </Link>
 
-        {/* Today's Visitors */}
-        <div className="dashboard-mini-card">
+        {/* Today's Visitors & Security */}
+        <Link
+          to="/owner/visitors"
+          className="dashboard-mini-card"
+          style={{ textDecoration: 'none', color: 'inherit' }}
+        >
           <div className="mini-card-head">
-            <span className="mini-card-title">Today&apos;s Visitors</span>
-            <span className="mini-card-badge">0</span>
+            <span className="mini-card-title">Visitors &amp; Gate Security</span>
+            <span
+              className="mini-card-badge"
+              style={{
+                backgroundColor: (dashboardData?.operations?.visitors_inside ?? 0) > 0 ? '#eff6ff' : '#f1f5f9',
+                color: (dashboardData?.operations?.visitors_inside ?? 0) > 0 ? '#1d4ed8' : '#64748b',
+                fontWeight: 700,
+              }}
+            >
+              {(dashboardData?.operations?.visitors_inside ?? 0)} inside
+            </span>
           </div>
           <div className="card-empty-state-mini">
             <span className="empty-icon-mini">🚪</span>
-            <p className="empty-text-mini">No visitor activity today.</p>
+            <p className="empty-text-mini">
+              {(dashboardData?.operations?.pending_visitors ?? 0) > 0
+                ? `${dashboardData.operations.pending_visitors} pending pass approval.`
+                : (dashboardData?.operations?.visitors_inside ?? 0) > 0
+                ? `${dashboardData.operations.visitors_inside} visitors currently on premises.`
+                : 'No active visitors inside.'}
+            </p>
           </div>
-        </div>
+          <div style={{ padding: '0 14px 10px', fontSize: '0.75rem', color: '#2563eb', fontWeight: 600 }}>
+            Gate Pass Log &rarr;
+          </div>
+        </Link>
 
         {/* This Month's Expenses */}
         <div className="dashboard-mini-card">

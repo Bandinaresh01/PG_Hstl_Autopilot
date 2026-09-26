@@ -21,6 +21,7 @@ import OwnerRoomsPage from './pages/owner/OwnerRoomsPage'
 import OwnerTenantsPage from './pages/owner/OwnerTenantsPage'
 import OwnerComplaintsPage from './pages/owner/OwnerComplaintsPage'
 import OwnerMaintenancePage from './pages/owner/OwnerMaintenancePage'
+import OwnerVisitorsPage from './pages/owner/OwnerVisitorsPage'
 import OwnerModulePlaceholder from './pages/owner/OwnerModulePlaceholder'
 
 // Tenant Portal imports
@@ -33,6 +34,7 @@ import TenantStayPage from './pages/tenant/TenantStayPage'
 import TenantPaymentsPage from './pages/tenant/TenantPaymentsPage'
 import TenantServicesPage from './pages/tenant/TenantServicesPage'
 import TenantComplaintsPage from './pages/tenant/TenantComplaintsPage'
+import TenantVisitorsPage from './pages/tenant/TenantVisitorsPage'
 
 import './App.css'
 
@@ -66,15 +68,7 @@ function App() {
           <Route path="tenants" element={<OwnerTenantsPage />} />
           <Route path="payments" element={<OwnerPaymentsPage />} />
           <Route path="dues" element={<OwnerDuesPage />} />
-          <Route
-            path="visitors"
-            element={
-              <OwnerModulePlaceholder
-                title="Visitor Logs & Security"
-                description="Daily visitor entry/exit records, host resident authorization, and security logs."
-              />
-            }
-          />
+          <Route path="visitors" element={<OwnerVisitorsPage />} />
           <Route path="complaints" element={<OwnerComplaintsPage />} />
           <Route path="maintenance" element={<OwnerMaintenancePage />} />
           <Route
@@ -125,6 +119,7 @@ function App() {
           <Route path="services" element={<TenantServicesPage />} />
           <Route path="complaints" element={<TenantComplaintsPage />} />
           <Route path="complaints/:complaintId" element={<TenantComplaintsPage />} />
+          <Route path="visitors" element={<TenantVisitorsPage />} />
         </Route>
       </Route>
 

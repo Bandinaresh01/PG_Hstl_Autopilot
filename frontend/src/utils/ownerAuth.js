@@ -350,3 +350,139 @@ export async function fetchOwnerSingleMaintenance(taskId) {
   return data
 }
 
+/**
+ * ============================================================================
+ * OWNER VISITOR LOGS & GATE SECURITY HELPERS
+ * ============================================================================
+ */
+
+/**
+ * Fetch all visitor records with filters (status, date, search)
+ */
+export async function fetchOwnerVisitors(statusFilter = 'ALL', dateFilter = 'ALL', searchQuery = '') {
+  const params = new URLSearchParams()
+  if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter)
+  if (dateFilter && dateFilter !== 'ALL') params.append('date', dateFilter)
+  if (searchQuery) params.append('search', searchQuery)
+
+  const url = `${API_BASE_URL}/api/owner/visitors${params.toString() ? `?${params.toString()}` : ''}`
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve visitor logs.')
+  }
+  return data
+}
+
+/**
+ * Fetch a single visitor log by ID
+ */
+export async function fetchOwnerSingleVisitor(visitorId) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/visitors/${visitorId}`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve visitor details.')
+  }
+  return data
+}
+
+/**
+ * Approve a visitor pass request and issue pass code
+ */
+export async function approveOwnerVisitor(visitorId, payload = {}) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/visitors/${visitorId}/approve`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to approve visitor.')
+  }
+  return data
+}
+
+/**
+ * Reject a visitor pass request with reason
+ */
+export async function rejectOwnerVisitor(visitorId, payload = {}) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/visitors/${visitorId}/reject`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to reject visitor.')
+  }
+  return data
+}
+
+/**
+ * Record visitor entry / check-in at gate/reception
+ */
+export async function checkInOwnerVisitor(visitorId, payload = {}) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/visitors/${visitorId}/check-in`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to check in visitor.')
+  }
+  return data
+}
+
+/**
+ * Record visitor exit / check-out at gate/reception
+ */
+export async function checkOutOwnerVisitor(visitorId, payload = {}) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/visitors/${visitorId}/check-out`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to check out visitor.')
+  }
+  return data
+}
+
+/**
+ * Register an instant walk-in visitor at reception
+ */
+export async function createOwnerWalkInVisitor(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/visitors/walk-in`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to register walk-in visitor.')
+  }
+  return data
+}
+

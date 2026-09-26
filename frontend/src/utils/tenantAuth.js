@@ -302,3 +302,78 @@ export async function fetchTenantSingleComplaint(complaintId) {
   return data
 }
 
+/**
+ * ============================================================================
+ * VISITOR PASS HELPERS
+ * ============================================================================
+ */
+
+/**
+ * Fetch all visitor pass requests strictly belonging to current tenant
+ */
+export async function fetchTenantVisitors() {
+  const response = await fetch(`${API_BASE_URL}/api/tenant/me/visitors`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve visitor passes.')
+  }
+  return data
+}
+
+/**
+ * Submit a new visitor pass request
+ */
+export async function submitTenantVisitorRequest(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/tenant/me/visitors`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to submit visitor request.')
+  }
+  return data
+}
+
+/**
+ * Cancel a pending or approved visitor request before check-in
+ */
+export async function cancelTenantVisitorRequest(visitorId) {
+  const response = await fetch(`${API_BASE_URL}/api/tenant/me/visitors/${visitorId}/cancel`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to cancel visitor request.')
+  }
+  return data
+}
+
+/**
+ * Fetch single visitor pass details
+ */
+export async function fetchTenantSingleVisitor(visitorId) {
+  const response = await fetch(`${API_BASE_URL}/api/tenant/me/visitors/${visitorId}`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve visitor pass details.')
+  }
+  return data
+}
+

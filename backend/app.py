@@ -72,6 +72,7 @@ def get_auth_client() -> Client:
 
 from payments_repo import PaymentRepository
 from complaints_repo import ComplaintsMaintenanceRepository
+from visitors_repo import get_visitors_repo
 
 _payment_repo = None
 _complaints_repo = None
@@ -106,6 +107,7 @@ try:
     # Initialize repositories
     get_payment_repo()
     get_complaints_repo()
+    get_visitors_repo()
 except Exception as e:
     logger.error(f"Failed to initialize Supabase client: {e}")
 
@@ -793,6 +795,12 @@ def get_tenant_portal_data():
         tenant_id_filters=tenant_filters,
     )
 
+    v_repo = get_visitors_repo()
+    visitors_summary = v_repo.get_tenant_visitor_summary(
+        hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+        tenant_id_filters=tenant_filters,
+    )
+
     return jsonify({
         "profile": {
             "user_code": tenant["user_code"],
@@ -825,6 +833,8 @@ def get_tenant_portal_data():
         },
         "complaints_summary": complaints_summary,
         "active_complaints_count": complaints_summary["open"] + complaints_summary["in_progress"],
+        "visitors_summary": visitors_summary,
+        "active_visitors_count": visitors_summary["inside"] + visitors_summary["approved"] + visitors_summary["pending"],
         "notices": [
             {
                 "id": "not-1",
@@ -1049,6 +1059,144 @@ def get_tenant_single_complaint(complaint_id):
 
 
 # ============================================================================
+# 3B. TENANT VISITOR PASS ENDPOINTS (/api/tenant/me/visitors)
+# ============================================================================
+
+@app.route("/api/tenant/me/visitors", methods=["GET"])
+@tenant_required
+def get_tenant_my_visitors():
+    """
+    List visitor requests strictly belonging to the authenticated resident.
+    Includes live status (PENDING_APPROVAL, APPROVED, CHECKED_IN, CHECKED_OUT, etc.)
+    and KPI counters.
+    """
+    try:
+        tenant = g.current_tenant
+        tenant_filters = [
+            tenant.get("user_code"),
+            tenant.get("email"),
+            tenant.get("auth_user_id"),
+        ]
+        repo = get_visitors_repo()
+        visitors = repo.get_tenant_visitors(
+            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            tenant_id_filters=tenant_filters,
+        )
+        summary = repo.get_tenant_visitor_summary(
+            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            tenant_id_filters=tenant_filters,
+        )
+        return jsonify({
+            "visitors": visitors,
+            "summary": summary,
+        }), 200
+    except Exception as e:
+        logger.error(f"Error fetching tenant visitors: {e}")
+        return jsonify({"error": "Unable to retrieve visitor passes at this time."}), 500
+
+
+@app.route("/api/tenant/me/visitors", methods=["POST"])
+@tenant_required
+def create_tenant_my_visitor():
+    """
+    Submit a new visitor pass request for host tenant.
+    Initial status: PENDING_APPROVAL.
+    """
+    try:
+        tenant = g.current_tenant
+        payload = request.get_json(silent=True) or {}
+
+        visitor_name = (payload.get("visitor_name") or "").strip()
+        visitor_phone = (payload.get("visitor_phone") or "").strip()
+        visit_date = (payload.get("visit_date") or "").strip()
+
+        if not visitor_name:
+            return jsonify({"error": "Visitor name is required."}), 400
+        if not visitor_phone:
+            return jsonify({"error": "Visitor phone number is required."}), 400
+        if not visit_date:
+            return jsonify({"error": "Visit date is required."}), 400
+
+        repo = get_visitors_repo()
+        created = repo.create_tenant_visitor_request(
+            data=payload,
+            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            tenant_profile=tenant,
+        )
+
+        return jsonify({
+            "success": True,
+            "message": "Visitor pass request submitted! Management will review shortly.",
+            "visitor": created,
+        }), 201
+    except Exception as e:
+        logger.error(f"Error submitting visitor request: {e}")
+        return jsonify({"error": f"Failed to submit visitor request: {str(e)}"}), 500
+
+
+@app.route("/api/tenant/me/visitors/<visitor_id>/cancel", methods=["PATCH"])
+@tenant_required
+def cancel_tenant_my_visitor(visitor_id):
+    """
+    Cancel an upcoming or pending visitor request before check-in.
+    """
+    try:
+        tenant = g.current_tenant
+        tenant_filters = [
+            tenant.get("user_code"),
+            tenant.get("email"),
+            tenant.get("auth_user_id"),
+        ]
+        repo = get_visitors_repo()
+        cancelled = repo.cancel_tenant_visitor_request(
+            visitor_id=visitor_id,
+            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            tenant_id_filters=tenant_filters,
+        )
+        if not cancelled:
+            return jsonify({"error": "Visitor request not found or unauthorized."}), 404
+
+        return jsonify({
+            "success": True,
+            "message": "Visitor pass request cancelled.",
+            "visitor": cancelled,
+        }), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        logger.error(f"Error cancelling visitor request: {e}")
+        return jsonify({"error": "Unable to cancel visitor request."}), 500
+
+
+@app.route("/api/tenant/me/visitors/<visitor_id>", methods=["GET"])
+@tenant_required
+def get_tenant_single_visitor(visitor_id):
+    """
+    Get full digital pass details for tenant's visitor.
+    """
+    try:
+        tenant = g.current_tenant
+        tenant_filters = [
+            tenant.get("user_code"),
+            tenant.get("email"),
+            tenant.get("auth_user_id"),
+        ]
+        repo = get_visitors_repo()
+        visitor = repo.get_tenant_visitor_by_id(
+            visitor_id=visitor_id,
+            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            tenant_id_filters=tenant_filters,
+        )
+        if not visitor:
+            return jsonify({"error": "Visitor record not found."}), 404
+
+        return jsonify({"visitor": visitor}), 200
+    except Exception as e:
+        logger.error(f"Error fetching visitor pass: {e}")
+        return jsonify({"error": "Unable to retrieve pass details."}), 500
+
+
+# ============================================================================
 # 4. OWNER-ONLY TENANT ACCOUNT CREATION (POST /api/owner/tenants/:tenantId/create-account)
 # ============================================================================
 
@@ -1263,6 +1411,10 @@ def get_owner_dashboard():
         c_repo = get_complaints_repo()
         ops_metrics = c_repo.get_dashboard_counts(owner["hostel_id"])
 
+        # Real visitor metrics for gate security
+        v_repo = get_visitors_repo()
+        visitor_metrics = v_repo.get_dashboard_counts(owner["hostel_id"])
+
         return jsonify({
             "hostel": {
                 "id": owner["hostel_id"],
@@ -1291,6 +1443,8 @@ def get_owner_dashboard():
             "operations": {
                 "open_complaints": ops_metrics["open_complaints"],
                 "maintenance_attention": ops_metrics["maintenance_attention"],
+                "visitors_inside": visitor_metrics["inside_now"],
+                "pending_visitors": visitor_metrics["pending_approval"],
             },
             "recent_enquiries": recent_enquiries,
             "alerts": alerts,
@@ -1598,6 +1752,214 @@ def update_owner_maintenance_task(task_id):
     except Exception as e:
         logger.error(f"Error updating maintenance task {task_id}: {e}")
         return jsonify({"error": f"Failed to update maintenance task: {str(e)}"}), 500
+
+
+# ============================================================================
+# 5B. OWNER VISITOR LOGS & GATE ENTRY/EXIT ENDPOINTS (/api/owner/visitors)
+# ============================================================================
+
+@app.route("/api/owner/visitors", methods=["GET"])
+@owner_required
+def get_owner_visitors():
+    """
+    List all visitor requests and logs with status/date filters, search, and KPI summary.
+    """
+    try:
+        owner = g.current_owner
+        status_filter = request.args.get("status", "ALL")
+        date_filter = request.args.get("date", "ALL")
+        search_query = request.args.get("search", "")
+
+        repo = get_visitors_repo()
+        result = repo.get_owner_visitors(
+            hostel_id=owner["hostel_id"],
+            status_filter=status_filter,
+            date_filter=date_filter,
+            search_query=search_query,
+        )
+        return jsonify(result), 200
+    except Exception as e:
+        logger.error(f"Error fetching owner visitors: {e}")
+        return jsonify({"error": "Unable to retrieve visitor logs at this time."}), 500
+
+
+@app.route("/api/owner/visitors/<visitor_id>", methods=["GET"])
+@owner_required
+def get_owner_single_visitor(visitor_id):
+    """
+    Get single visitor record for owner/reception.
+    """
+    try:
+        owner = g.current_owner
+        repo = get_visitors_repo()
+        visitor = repo.get_owner_visitor_by_id(visitor_id, owner["hostel_id"])
+        if not visitor:
+            return jsonify({"error": "Visitor record not found."}), 404
+        return jsonify({"visitor": visitor}), 200
+    except Exception as e:
+        logger.error(f"Error fetching owner visitor {visitor_id}: {e}")
+        return jsonify({"error": "Unable to retrieve visitor details."}), 500
+
+
+@app.route("/api/owner/visitors/<visitor_id>/approve", methods=["PATCH"])
+@owner_required
+def approve_owner_visitor(visitor_id):
+    """
+    Approve visitor request, issue digital pass code, and record gate instructions.
+    """
+    try:
+        owner = g.current_owner
+        payload = request.get_json(silent=True) or {}
+        approval_notes = payload.get("approval_notes", "")
+        owner_notes = payload.get("owner_notes", "")
+
+        repo = get_visitors_repo()
+        updated = repo.approve_visitor(
+            visitor_id=visitor_id,
+            hostel_id=owner["hostel_id"],
+            approval_notes=approval_notes,
+            owner_notes=owner_notes,
+        )
+        if not updated:
+            return jsonify({"error": "Visitor record not found or approval failed."}), 404
+
+        return jsonify({
+            "success": True,
+            "message": f"Visitor request approved. Pass Code: {updated.get('pass_code')}",
+            "visitor": updated,
+        }), 200
+    except Exception as e:
+        logger.error(f"Error approving visitor {visitor_id}: {e}")
+        return jsonify({"error": f"Failed to approve visitor: {str(e)}"}), 500
+
+
+@app.route("/api/owner/visitors/<visitor_id>/reject", methods=["PATCH"])
+@owner_required
+def reject_owner_visitor(visitor_id):
+    """
+    Reject visitor request with reason visible to resident.
+    """
+    try:
+        owner = g.current_owner
+        payload = request.get_json(silent=True) or {}
+        rejection_reason = (payload.get("rejection_reason") or "").strip()
+        if not rejection_reason:
+            return jsonify({"error": "Rejection reason is required."}), 400
+
+        owner_notes = payload.get("owner_notes", "")
+        repo = get_visitors_repo()
+        updated = repo.reject_visitor(
+            visitor_id=visitor_id,
+            hostel_id=owner["hostel_id"],
+            rejection_reason=rejection_reason,
+            owner_notes=owner_notes,
+        )
+        if not updated:
+            return jsonify({"error": "Visitor record not found or rejection failed."}), 404
+
+        return jsonify({
+            "success": True,
+            "message": "Visitor request rejected.",
+            "visitor": updated,
+        }), 200
+    except Exception as e:
+        logger.error(f"Error rejecting visitor {visitor_id}: {e}")
+        return jsonify({"error": f"Failed to reject visitor: {str(e)}"}), 500
+
+
+@app.route("/api/owner/visitors/<visitor_id>/check-in", methods=["POST"])
+@owner_required
+def check_in_owner_visitor(visitor_id):
+    """
+    Record visitor arrival at gate/reception desk. Sets status = CHECKED_IN.
+    """
+    try:
+        owner = g.current_owner
+        payload = request.get_json(silent=True) or {}
+
+        repo = get_visitors_repo()
+        updated = repo.check_in_visitor(
+            visitor_id=visitor_id,
+            hostel_id=owner["hostel_id"],
+            check_in_data=payload,
+        )
+        if not updated:
+            return jsonify({"error": "Visitor record not found or check-in failed."}), 404
+
+        return jsonify({
+            "success": True,
+            "message": f"Visitor {updated.get('visitor_name')} checked in successfully.",
+            "visitor": updated,
+        }), 200
+    except Exception as e:
+        logger.error(f"Error checking in visitor {visitor_id}: {e}")
+        return jsonify({"error": f"Failed to check in visitor: {str(e)}"}), 500
+
+
+@app.route("/api/owner/visitors/<visitor_id>/check-out", methods=["POST"])
+@owner_required
+def check_out_owner_visitor(visitor_id):
+    """
+    Record visitor departure at gate/reception desk. Sets status = CHECKED_OUT.
+    """
+    try:
+        owner = g.current_owner
+        payload = request.get_json(silent=True) or {}
+
+        repo = get_visitors_repo()
+        updated = repo.check_out_visitor(
+            visitor_id=visitor_id,
+            hostel_id=owner["hostel_id"],
+            check_out_data=payload,
+        )
+        if not updated:
+            return jsonify({"error": "Visitor record not found or check-out failed."}), 404
+
+        return jsonify({
+            "success": True,
+            "message": f"Visitor {updated.get('visitor_name')} checked out successfully.",
+            "visitor": updated,
+        }), 200
+    except Exception as e:
+        logger.error(f"Error checking out visitor {visitor_id}: {e}")
+        return jsonify({"error": f"Failed to check out visitor: {str(e)}"}), 500
+
+
+@app.route("/api/owner/visitors/walk-in", methods=["POST"])
+@owner_required
+def create_owner_walk_in_visitor():
+    """
+    Direct registration of walk-in visitor arriving at reception.
+    """
+    try:
+        owner = g.current_owner
+        payload = request.get_json(silent=True) or {}
+
+        visitor_name = (payload.get("visitor_name") or "").strip()
+        visitor_phone = (payload.get("visitor_phone") or "").strip()
+        tenant_name = (payload.get("tenant_name") or "").strip()
+
+        if not visitor_name:
+            return jsonify({"error": "Visitor name is required."}), 400
+        if not visitor_phone:
+            return jsonify({"error": "Visitor phone number is required."}), 400
+        if not tenant_name:
+            return jsonify({"error": "Host resident name is required."}), 400
+
+        repo = get_visitors_repo()
+        created = repo.create_walk_in_visitor(
+            data=payload,
+            hostel_id=owner["hostel_id"],
+        )
+
+        return jsonify({
+            "success": True,
+            "message": f"Walk-in visitor {created.get('visitor_name')} logged with pass {created.get('pass_code')}.",
+            "visitor": created,
+        }), 201
+    except Exception as e:
+        logger.error(f"Error logging walk-in visitor: {e}")
+        return jsonify({"error": f"Failed to log walk-in visitor: {str(e)}"}), 500
 
 
 # ============================================================================

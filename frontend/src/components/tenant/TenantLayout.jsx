@@ -95,6 +95,13 @@ export default function TenantLayout() {
             <span>⚠️</span>
             <span>Complaints &amp; Support</span>
           </NavLink>
+          <NavLink
+            to="/tenant/visitors"
+            className={({ isActive }) => `tenant-nav-tab ${isActive ? 'active' : ''}`}
+          >
+            <span>🚪</span>
+            <span>Visitor Passes</span>
+          </NavLink>
         </div>
       </nav>
 
