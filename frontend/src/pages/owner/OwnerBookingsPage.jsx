@@ -1,16 +1,66 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { demoBookings, getBookingStats } from '../../data/bookingsData'
+import { fetchOwnerBookings, updateOwnerBookingStatus } from '../../utils/ownerAuth'
 import './OwnerBookingsPage.css'
 import './OwnerDashboardPage.css'
 
 export default function OwnerBookingsPage() {
-  const [bookings] = useState(demoBookings)
+  const [bookings, setBookings] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedBooking, setSelectedBooking] = useState(null)
 
-  const stats = useMemo(() => getBookingStats(bookings), [bookings])
+  const loadBookings = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const data = await fetchOwnerBookings()
+      const raw = data.bookings || []
+      const normalized = raw.map((b) => ({
+        id: b.booking_code || b.id,
+        name: b.name || b.tenant_name || 'Guest Booking',
+        phone: b.phone || b.tenant_phone || '',
+        email: b.email || '',
+        roomType: b.room_type || (b.room_id ? `Room ${b.room_id}` : 'Double Sharing Room'),
+        moveInDate: b.expected_move_in_date || b.moveInDate || '2026-10-01',
+        bookingDate: b.booking_date || b.bookingDate || '2026-09-22',
+        bookingStatus: b.booking_status || b.bookingStatus || 'PENDING',
+        paymentStatus: b.payment_status || b.paymentStatus || 'UNPAID',
+        monthlyRent: Number(b.monthly_rent || b.monthlyRent || 8500),
+        securityDeposit: Number(b.security_deposit || b.securityDeposit || 8500),
+        bookingAmount: Number(b.booking_amount || b.bookingAmount || 2000),
+        paidAmount: Number(b.paid_amount || b.paidAmount || (b.payment_status === 'PAID' ? (b.booking_amount || 2000) : 0)),
+        notes: b.notes || '',
+      }))
+      setBookings(normalized)
+    } catch (err) {
+      console.error('Failed to load bookings:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadBookings()
+  }, [loadBookings])
+
+  const stats = useMemo(() => {
+    const today = new Date('2026-09-26')
+    const totalBookings = bookings.length
+    const confirmed = bookings.filter((b) => b.bookingStatus === 'CONFIRMED').length
+    const pending = bookings.filter((b) => b.bookingStatus === 'PENDING').length
+    const upcomingMoveIns = bookings.filter((b) => {
+      const mDate = new Date(b.moveInDate)
+      return mDate >= today && b.bookingStatus !== 'CANCELLED' && b.bookingStatus !== 'CHECKED_IN'
+    }).length
+
+    return {
+      totalBookings,
+      confirmed,
+      pending,
+      upcomingMoveIns,
+    }
+  }, [bookings])
 
   // Filter and search logic
   const filteredBookings = useMemo(() => {

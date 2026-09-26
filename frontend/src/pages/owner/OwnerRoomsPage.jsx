@@ -1,11 +1,12 @@
-import React, { useState, useMemo } from 'react'
-import { initialRooms, getRoomStats } from '../../data/roomsData'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
+import { fetchOwnerRooms, createOwnerRoom, createOwnerTenant, updateOwnerBedStatus } from '../../utils/ownerAuth'
 import { calculateStayDuration } from '../../data/tenantsData'
 import './OwnerRoomsPage.css'
 import './OwnerDashboardPage.css'
 
 export default function OwnerRoomsPage() {
-  const [rooms, setRooms] = useState(initialRooms)
+  const [rooms, setRooms] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
   const [viewMode, setViewMode] = useState('GRID') // 'GRID' | 'TABLE'
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [floorFilter, setFloorFilter] = useState('ALL')
@@ -24,8 +25,79 @@ export default function OwnerRoomsPage() {
   const [stayEndDateInput, setStayEndDateInput] = useState('2027-03-31')
   const [toastMessage, setToastMessage] = useState('')
 
+  // Add Room Modal State
+  const [addRoomModalOpen, setAddRoomModalOpen] = useState(false)
+  const [newRoomNumber, setNewRoomNumber] = useState('')
+  const [newRoomType, setNewRoomType] = useState('DOUBLE')
+  const [newFloor, setNewFloor] = useState(2)
+  const [newMonthlyRent, setNewMonthlyRent] = useState(8500)
+  const [isSubmittingRoom, setIsSubmittingRoom] = useState(false)
+
+  // Fetch rooms from backend database
+  const loadRooms = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const data = await fetchOwnerRooms()
+      const rawRooms = data.rooms || []
+      const normalized = rawRooms.map((r) => ({
+        id: r.id,
+        roomNumber: r.room_number ? (String(r.room_number).startsWith('Room ') ? r.room_number : `Room ${r.room_number}`) : (r.roomNumber || 'Room'),
+        roomType: r.room_type || r.roomType || 'Double Sharing',
+        floor: r.floor ? (typeof r.floor === 'number' ? `Floor ${r.floor}` : r.floor) : 'Floor 1',
+        monthlyRent: Number(r.monthly_rent || r.monthlyRent || 0),
+        deposit: Number(r.security_deposit || r.deposit || 0),
+        capacity: r.capacity || r.beds?.length || 2,
+        status: r.status || 'ACTIVE',
+        amenities: r.amenities || ['Attached Washroom', 'High-Speed Wi-Fi', 'Study Desks', 'Wardrobes'],
+        beds: (r.beds || []).map((b) => ({
+          id: b.id,
+          bedCode: b.bed_code || b.bedCode || 'Bed',
+          status: b.status || 'AVAILABLE',
+          tenantId: b.tenant_id || b.tenantId || null,
+          tenantName: b.tenant_name || b.tenantName || null,
+          moveInDate: b.move_in_date || b.moveInDate || null,
+          expectedEndDate: b.expected_end_date || b.expectedEndDate || null,
+        }))
+      }))
+      setRooms(normalized)
+    } catch (err) {
+      console.error('Failed to load rooms:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadRooms()
+  }, [loadRooms])
+
   // Calculate live stats
-  const stats = useMemo(() => getRoomStats(rooms), [rooms])
+  const stats = useMemo(() => {
+    let totalBeds = 0
+    let occupiedBeds = 0
+    let availableBeds = 0
+    let reservedBeds = 0
+    let maintenanceBeds = 0
+
+    rooms.forEach((r) => {
+      ;(r.beds || []).forEach((b) => {
+        totalBeds += 1
+        if (b.status === 'OCCUPIED') occupiedBeds += 1
+        else if (b.status === 'AVAILABLE') availableBeds += 1
+        else if (b.status === 'RESERVED') reservedBeds += 1
+        else if (b.status === 'MAINTENANCE' || b.status === 'UNAVAILABLE') maintenanceBeds += 1
+      })
+    })
+
+    return {
+      totalRooms: rooms.length,
+      totalBeds,
+      occupiedBeds,
+      availableBeds,
+      reservedBeds,
+      maintenanceBeds,
+    }
+  }, [rooms])
 
   // Available beds for selected room in Assign Modal
   const availableBedsForTargetRoom = useMemo(() => {
@@ -38,19 +110,14 @@ export default function OwnerRoomsPage() {
   // Filtered rooms logic
   const filteredRooms = useMemo(() => {
     return rooms.filter((r) => {
-      // 1. Status Filter
       if (statusFilter === 'AVAILABLE' && r.status !== 'AVAILABLE') return false
       if (statusFilter === 'PARTIALLY_OCCUPIED' && r.status !== 'PARTIALLY_OCCUPIED') return false
       if (statusFilter === 'FULLY_OCCUPIED' && r.status !== 'FULLY_OCCUPIED') return false
       if (statusFilter === 'MAINTENANCE' && r.status !== 'MAINTENANCE') return false
 
-      // 2. Floor Filter
       if (floorFilter !== 'ALL' && r.floor !== floorFilter) return false
-
-      // 3. Room Type Filter
       if (typeFilter !== 'ALL' && r.roomType !== typeFilter) return false
 
-      // 4. Search Query (Room Number, Floor, Tenant Name, Bed ID)
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase()
         const matchRoomNum = r.roomNumber.toLowerCase().includes(q)
@@ -72,7 +139,6 @@ export default function OwnerRoomsPage() {
     const defaultRoom = roomId || (rooms.find((r) => r.beds.some((b) => b.status === 'AVAILABLE'))?.id || '')
     setTargetRoomId(defaultRoom)
     
-    // Auto-select bed if provided or first available bed
     if (bedId) {
       setTargetBedId(bedId)
     } else {
@@ -97,62 +163,68 @@ export default function OwnerRoomsPage() {
     setTargetBedId(firstAvailableBed?.id || '')
   }
 
-  // Submit Assign Tenant
-  const handleAssignTenantSubmit = (e) => {
+  // Submit Assign Tenant via real backend API
+  const handleAssignTenantSubmit = async (e) => {
     e.preventDefault()
     if (!targetRoomId || !targetBedId || !tenantNameInput.trim()) {
       alert('Please select a room, an available bed, and enter tenant name.')
       return
     }
 
-    // Update rooms state safely
-    setRooms((prevRooms) =>
-      prevRooms.map((room) => {
-        if (room.id !== targetRoomId) return room
-
-        const updatedBeds = room.beds.map((bed) => {
-          if (bed.id !== targetBedId) return bed
-          return {
-            ...bed,
-            status: 'OCCUPIED',
-            tenantId: `TEN-${Math.floor(1000 + Math.random() * 9000)}`,
-            tenantName: tenantNameInput.trim(),
-            moveInDate: moveInDateInput,
-            expectedEndDate: stayEndDateInput,
-          }
-        })
-
-        // Recalculate room status
-        const totalBeds = updatedBeds.length
-        const occupiedCount = updatedBeds.filter(
-          (b) => b.status === 'OCCUPIED' || b.status === 'RESERVED'
-        ).length
-        const availableCount = updatedBeds.filter((b) => b.status === 'AVAILABLE').length
-
-        let newStatus = room.status
-        if (availableCount === totalBeds) newStatus = 'AVAILABLE'
-        else if (occupiedCount === totalBeds) newStatus = 'FULLY_OCCUPIED'
-        else newStatus = 'PARTIALLY_OCCUPIED'
-
-        return {
-          ...room,
-          beds: updatedBeds,
-          status: newStatus,
-        }
+    try {
+      await createOwnerTenant({
+        full_name: tenantNameInput.trim(),
+        phone: tenantPhoneInput.trim(),
+        email: tenantEmailInput.trim(),
+        room_id: targetRoomId,
+        bed_id: targetBedId,
+        move_in_date: moveInDateInput,
+        expected_end_date: stayEndDateInput,
+        status: 'ACTIVE'
       })
-    )
 
-    const assignedRoom = rooms.find((r) => r.id === targetRoomId)
-    setAssignModalOpen(false)
-    if (selectedRoomForDetails?.id === targetRoomId) {
-      setSelectedRoomForDetails(null)
+      await loadRooms()
+      setAssignModalOpen(false)
+      if (selectedRoomForDetails?.id === targetRoomId) {
+        setSelectedRoomForDetails(null)
+      }
+
+      setToastMessage(`Assigned ${tenantNameInput} to bed successfully!`)
+      setTimeout(() => setToastMessage(''), 3500)
+    } catch (err) {
+      alert(err.message || 'Failed to assign tenant to bed.')
+    }
+  }
+
+  // Submit Add Room via real backend API
+  const handleAddRoomSubmit = async (e) => {
+    e.preventDefault()
+    if (!newRoomNumber.trim()) {
+      alert('Please enter a room number.')
+      return
     }
 
-    // Trigger toast notification
-    setToastMessage(`Assigned ${tenantNameInput} to ${assignedRoom?.roomNumber || 'Room'}, Bed ${targetBedId}!`)
-    setTimeout(() => {
-      setToastMessage('')
-    }, 3500)
+    try {
+      setIsSubmittingRoom(true)
+      await createOwnerRoom({
+        room_number: newRoomNumber.trim(),
+        room_type: newRoomType,
+        floor: Number(newFloor),
+        monthly_rent: Number(newMonthlyRent),
+        security_deposit: Number(newMonthlyRent),
+        capacity: newRoomType === 'SINGLE' ? 1 : newRoomType === 'TRIPLE' ? 3 : 2
+      })
+
+      await loadRooms()
+      setAddRoomModalOpen(false)
+      setNewRoomNumber('')
+      setToastMessage(`Room ${newRoomNumber} created successfully in database!`)
+      setTimeout(() => setToastMessage(''), 3500)
+    } catch (err) {
+      alert(err.message || 'Failed to create room.')
+    } finally {
+      setIsSubmittingRoom(false)
+    }
   }
 
   return (
@@ -168,7 +240,16 @@ export default function OwnerRoomsPage() {
             Live overview of hostel rooms, bed assignments, occupancy, and tenant allocations.
           </p>
         </div>
-        <div className="rooms-header-actions">
+        <div className="rooms-header-actions" style={{ display: 'flex', gap: '8px' }}>
+          <button
+            type="button"
+            className="quick-action-btn secondary"
+            onClick={() => setAddRoomModalOpen(true)}
+            style={{ backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #cbd5e1' }}
+          >
+            <span className="btn-icon">+</span>
+            <span>Add Room</span>
+          </button>
           <button
             type="button"
             className="quick-action-btn primary"
@@ -937,6 +1018,108 @@ export default function OwnerRoomsPage() {
                   disabled={availableBedsForTargetRoom.length === 0}
                 >
                   Confirm Bed Assignment
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 8. Add Room Modal */}
+      {addRoomModalOpen && (
+        <div className="modal-backdrop">
+          <div className="modal-dialog" style={{ maxWidth: '460px' }}>
+            <div className="modal-header">
+              <div>
+                <h3 className="modal-title">Create New Room</h3>
+                <p className="modal-subtitle">Add a room to the hostel inventory with auto-generated beds</p>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setAddRoomModalOpen(false)}
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleAddRoomSubmit}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div className="assign-form-group">
+                  <label htmlFor="new-room-num">Room Number *</label>
+                  <input
+                    id="new-room-num"
+                    type="text"
+                    className="assign-form-input"
+                    placeholder="e.g. 204 or 302"
+                    value={newRoomNumber}
+                    onChange={(e) => setNewRoomNumber(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="assign-form-row">
+                  <div className="assign-form-group">
+                    <label htmlFor="new-room-type">Room Type *</label>
+                    <select
+                      id="new-room-type"
+                      className="assign-form-select"
+                      value={newRoomType}
+                      onChange={(e) => setNewRoomType(e.target.value)}
+                    >
+                      <option value="SINGLE">Single Sharing (1 Bed)</option>
+                      <option value="DOUBLE">Double Sharing (2 Beds)</option>
+                      <option value="TRIPLE">Triple Sharing (3 Beds)</option>
+                    </select>
+                  </div>
+                  <div className="assign-form-group">
+                    <label htmlFor="new-floor">Floor Number *</label>
+                    <select
+                      id="new-floor"
+                      className="assign-form-select"
+                      value={newFloor}
+                      onChange={(e) => setNewFloor(Number(e.target.value))}
+                    >
+                      <option value={1}>Floor 1</option>
+                      <option value={2}>Floor 2</option>
+                      <option value={3}>Floor 3</option>
+                      <option value={4}>Floor 4</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="assign-form-group">
+                  <label htmlFor="new-rent">Monthly Rent (₹) *</label>
+                  <input
+                    id="new-rent"
+                    type="number"
+                    min="1000"
+                    step="500"
+                    className="assign-form-input"
+                    value={newMonthlyRent}
+                    onChange={(e) => setNewMonthlyRent(e.target.value)}
+                    required
+                  />
+                  <small style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '4px' }}>
+                    Security deposit will be defaulted to 1 month rent.
+                  </small>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-table-action"
+                  onClick={() => setAddRoomModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="quick-action-btn primary"
+                  disabled={isSubmittingRoom}
+                >
+                  {isSubmittingRoom ? 'Creating...' : 'Create Room & Beds'}
                 </button>
               </div>
             </form>

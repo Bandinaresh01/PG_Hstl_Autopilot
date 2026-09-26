@@ -21,6 +21,19 @@ PAYMENTS_FILE = os.path.join(DATA_DIR, "payments.json")
 
 _lock = threading.Lock()
 
+DEMO_HOSTEL_ID = "11111111-1111-1111-1111-111111111111"
+
+
+def matches_hostel(record_hostel_id: str, target_hostel_id: str) -> bool:
+    if not target_hostel_id:
+        return True
+    if str(record_hostel_id) == str(target_hostel_id):
+        return True
+    urbannest_aliases = {"hstl-urbannest-01", DEMO_HOSTEL_ID}
+    if str(record_hostel_id) in urbannest_aliases and str(target_hostel_id) in urbannest_aliases:
+        return True
+    return False
+
 
 def parse_date_str(d_val) -> date:
     """Safely parse a date string YYYY-MM-DD or return BASE_DATE."""
@@ -376,7 +389,7 @@ class PaymentRepository:
         clean_tenant_filters = [str(t).strip().lower() for t in (tenant_id_filters or []) if t]
 
         for r in records:
-            if hostel_id and r.get("hostel_id") != hostel_id:
+            if not matches_hostel(r.get("hostel_id"), hostel_id):
                 continue
 
             # Strict Tenant Isolation Check
@@ -435,7 +448,7 @@ class PaymentRepository:
         records = self._read_records()
         for r in records:
             if r.get("id") == payment_id:
-                if hostel_id and r.get("hostel_id") != hostel_id:
+                if not matches_hostel(r.get("hostel_id"), hostel_id):
                     return None
                 if clean_tenant_filters:
                     r_tid = str(r.get("tenant_id") or "").strip().lower()
@@ -670,5 +683,9 @@ class PaymentRepository:
             "collected_rent": round(total_collected, 2),
             "pending_rent": round(total_pending, 2),
             "overdue_rent": round(total_overdue, 2),
+            "total_expected": round(total_expected, 2),
+            "total_collected": round(total_collected, 2),
+            "total_pending": round(total_pending, 2),
+            "total_overdue": round(total_overdue, 2),
             "total_records": len(records),
         }

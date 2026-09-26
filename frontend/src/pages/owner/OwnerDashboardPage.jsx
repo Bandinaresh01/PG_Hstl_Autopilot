@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchOwnerDashboard, useOwnerAuth } from '../../utils/ownerAuth'
-import { initialRooms, getRoomStats } from '../../data/roomsData'
-import { initialTenants, calculateStayDuration, getTenantStats } from '../../data/tenantsData'
 import './OwnerDashboardPage.css'
 
 export default function OwnerDashboardPage() {
@@ -111,14 +109,13 @@ export default function OwnerDashboardPage() {
     )
   }
 
-  const roomStats = getRoomStats(initialRooms)
-  const tenantStats = getTenantStats(initialTenants)
-
   const summary = {
-    total_beds: dashboardData?.summary?.total_beds || roomStats.totalBeds,
-    occupied_beds: dashboardData?.summary?.occupied_beds || roomStats.occupiedBeds,
-    available_beds: dashboardData?.summary?.available_beds || roomStats.availableBeds,
-    current_tenants: dashboardData?.summary?.current_tenants || tenantStats.totalTenants,
+    total_rooms: dashboardData?.summary?.total_rooms || 0,
+    total_beds: dashboardData?.summary?.total_beds || 0,
+    occupied_beds: dashboardData?.summary?.occupied_beds || 0,
+    available_beds: dashboardData?.summary?.available_beds || 0,
+    current_tenants: dashboardData?.summary?.current_tenants || 0,
+    occupancy_rate: dashboardData?.summary?.occupancy_rate || 0,
   }
 
   const enquiriesKpi = dashboardData?.enquiries || {
@@ -590,15 +587,10 @@ export default function OwnerDashboardPage() {
             </Link>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 0 4px' }}>
-            {initialTenants
-              .filter((t) => t.status !== 'MOVED_OUT')
-              .map((t) => ({ ...t, stay: calculateStayDuration(t.expectedEndDate) }))
-              .filter((t) => t.stay.isEndingSoon)
-              .sort((a, b) => (a.stay.daysDiff ?? 999) - (b.stay.daysDiff ?? 999))
-              .slice(0, 3)
-              .map((t) => (
+            {dashboardData?.upcoming_stay_end_dates && dashboardData.upcoming_stay_end_dates.length > 0 ? (
+              dashboardData.upcoming_stay_end_dates.slice(0, 3).map((t) => (
                 <div
-                  key={t.id}
+                  key={t.tenant_id}
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -610,9 +602,9 @@ export default function OwnerDashboardPage() {
                   }}
                 >
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <strong style={{ fontSize: '0.875rem', color: '#0f172a' }}>{t.name}</strong>
+                    <strong style={{ fontSize: '0.875rem', color: '#0f172a' }}>{t.full_name}</strong>
                     <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                      {t.roomNumber} • {t.bedCode} ({t.roomType})
+                      {t.room_number ? `Room ${t.room_number}` : 'Room assigned'} • Ending: {t.expected_end_date}
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -627,7 +619,7 @@ export default function OwnerDashboardPage() {
                         border: '1px solid #fecaca',
                       }}
                     >
-                      {t.stay.label}
+                      {t.days_left === 0 ? 'Ends Today' : `${t.days_left}d left`}
                     </span>
                     <Link
                       to="/owner/tenants"
@@ -637,7 +629,12 @@ export default function OwnerDashboardPage() {
                     </Link>
                   </div>
                 </div>
-              ))}
+              ))
+            ) : (
+              <p style={{ margin: '8px 0', fontSize: '0.85rem', color: '#64748b', textAlign: 'center' }}>
+                No agreements expiring within the next 30 days.
+              </p>
+            )}
           </div>
         </div>
       </section>

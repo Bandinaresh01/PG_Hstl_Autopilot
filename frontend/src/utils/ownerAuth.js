@@ -486,3 +486,169 @@ export async function createOwnerWalkInVisitor(payload) {
   return data
 }
 
+// ============================================================================
+// ROOMS & BEDS CLIENT METHODS
+// ============================================================================
+
+export async function fetchOwnerRooms() {
+  const response = await fetch(`${API_BASE_URL}/api/owner/rooms`, {
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch rooms.')
+  }
+  return data
+}
+
+export async function createOwnerRoom(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/rooms`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to create room.')
+  }
+  return data
+}
+
+export async function addOwnerBed(roomId, bedCode) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/rooms/${roomId}/beds`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ bed_code: bedCode }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to add bed.')
+  }
+  return data
+}
+
+export async function updateOwnerBedStatus(bedId, status) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/beds/${bedId}`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ status }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update bed status.')
+  }
+  return data
+}
+
+// ============================================================================
+// TENANTS CLIENT METHODS
+// ============================================================================
+
+export async function fetchOwnerTenants(params = {}) {
+  const query = new URLSearchParams()
+  if (params.status) query.set('status', params.status)
+  if (params.search) query.set('search', params.search)
+  const qs = query.toString() ? `?${query.toString()}` : ''
+
+  const response = await fetch(`${API_BASE_URL}/api/owner/tenants${qs}`, {
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch tenants.')
+  }
+  return data
+}
+
+export async function createOwnerTenant(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/tenants`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to register tenant.')
+  }
+  return data
+}
+
+export async function assignOwnerTenantBed(tenantId, roomId, bedId) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/tenants/${tenantId}/assign-bed`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ room_id: roomId, bed_id: bedId }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to assign bed.')
+  }
+  return data
+}
+
+export async function vacateOwnerTenant(tenantId, moveOutDate) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/tenants/${tenantId}/vacate`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ move_out_date: moveOutDate }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to vacate tenant.')
+  }
+  return data
+}
+
+// ============================================================================
+// BOOKINGS CLIENT METHODS
+// ============================================================================
+
+export async function fetchOwnerBookings(status) {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : ''
+  const response = await fetch(`${API_BASE_URL}/api/owner/bookings${qs}`, {
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch bookings.')
+  }
+  return data
+}
+
+export async function createOwnerBooking(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/bookings`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to create booking.')
+  }
+  return data
+}
+
+export async function updateOwnerBookingStatus(bookingId, bookingStatus, paymentStatus) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/bookings/${bookingId}/status`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ booking_status: bookingStatus, payment_status: paymentStatus }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update booking status.')
+  }
+  return data
+}
+

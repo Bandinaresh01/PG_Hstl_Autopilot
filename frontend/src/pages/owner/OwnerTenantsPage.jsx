@@ -1,14 +1,21 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { initialTenants, calculateStayDuration, getTenantStats } from '../../data/tenantsData'
-import { initialRooms } from '../../data/roomsData'
-import { createTenantAccount } from '../../utils/ownerAuth'
+import {
+  fetchOwnerTenants,
+  createOwnerTenant,
+  vacateOwnerTenant,
+  fetchOwnerRooms,
+  createTenantAccount
+} from '../../utils/ownerAuth'
+import { calculateStayDuration } from '../../data/tenantsData'
 import './OwnerTenantsPage.css'
 import './OwnerRoomsPage.css'
 import './OwnerDashboardPage.css'
 
 export default function OwnerTenantsPage() {
-  const [tenants, setTenants] = useState(initialTenants)
+  const [tenants, setTenants] = useState([])
+  const [roomsList, setRoomsList] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('ALL')
   const [floorFilter, setFloorFilter] = useState('ALL')
   const [typeFilter, setTypeFilter] = useState('ALL')
@@ -45,15 +52,96 @@ export default function OwnerTenantsPage() {
   const [newTenantEmail, setNewTenantEmail] = useState('')
   const [newTenantOccupation, setNewTenantOccupation] = useState('')
   const [newTenantEmergency, setNewTenantEmergency] = useState('')
-  const [newTenantRoomId, setNewTenantRoomId] = useState('RM-101')
-  const [newTenantBedId, setNewTenantBedId] = useState('101-B')
+  const [newTenantRoomId, setNewTenantRoomId] = useState('')
+  const [newTenantBedId, setNewTenantBedId] = useState('')
   const [newTenantMoveIn, setNewTenantMoveIn] = useState('2026-10-01')
   const [newTenantEnd, setNewTenantEnd] = useState('2027-03-31')
-  const [newTenantRent, setNewTenantRent] = useState(6500)
-  const [newTenantDeposit, setNewTenantDeposit] = useState(6500)
+  const [newTenantRent, setNewTenantRent] = useState(8500)
+  const [newTenantDeposit, setNewTenantDeposit] = useState(8500)
+
+  const normalizeTenant = (t) => ({
+    id: t.id || t.tenant_code,
+    tenantCode: t.tenant_code || t.id,
+    name: t.full_name || t.name || 'Resident',
+    phone: t.phone || '',
+    email: t.email || '',
+    occupation: t.occupation || 'Working Professional',
+    emergencyContact: t.emergency_contact_name ? `${t.emergency_contact_name} (${t.emergency_contact_relationship || 'Family'})` : (t.emergencyContact || 'Verified Contact'),
+    roomId: t.room_id || t.roomId,
+    roomNumber: t.room_number ? (String(t.room_number).startsWith('Room ') ? t.room_number : `Room ${t.room_number}`) : (t.roomNumber || 'Room 101'),
+    bedId: t.bed_id || t.bedId,
+    bedCode: t.bed_code || t.bedCode || 'Bed A',
+    roomType: t.room_type || t.roomType || 'Double Sharing',
+    floor: t.floor ? (typeof t.floor === 'number' ? `Floor ${t.floor}` : t.floor) : 'Floor 1',
+    moveInDate: t.move_in_date || t.moveInDate || '2026-09-01',
+    expectedEndDate: t.expected_end_date || t.expectedEndDate || '2027-03-31',
+    noticePeriod: '1 Month',
+    monthlyRent: Number(t.monthly_rent || t.monthlyRent || 8500),
+    securityDeposit: Number(t.security_deposit || t.securityDeposit || 8500),
+    nextDueDate: t.next_due_date || t.nextDueDate || t.move_in_date || '2026-10-01',
+    outstandingAmount: Number(t.outstanding_amount || t.outstandingAmount || 0),
+    paymentStatus: t.payment_status || t.paymentStatus || 'PAID',
+    status: t.status || 'ACTIVE',
+    notes: t.notes || '',
+  })
+
+  const loadTenants = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const [tData, rData] = await Promise.all([
+        fetchOwnerTenants(),
+        fetchOwnerRooms().catch(() => ({ rooms: [] }))
+      ])
+      const rawTenants = tData.tenants || []
+      setTenants(rawTenants.map(normalizeTenant))
+      if (rData?.rooms && rData.rooms.length > 0) {
+        setRoomsList(rData.rooms)
+        setNewTenantRoomId((prev) => prev || rData.rooms[0].id)
+        const availBed = (rData.rooms[0].beds || []).find((b) => b.status === 'AVAILABLE') || rData.rooms[0].beds?.[0]
+        if (availBed) {
+          setNewTenantBedId((prev) => prev || availBed.id)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load tenants:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadTenants()
+  }, [loadTenants])
 
   // Derive stats
-  const stats = useMemo(() => getTenantStats(tenants), [tenants])
+  const stats = useMemo(() => {
+    let active = 0
+    let pending = 0
+    let noticePeriod = 0
+    let movedOut = 0
+    let endingSoon = 0
+
+    tenants.forEach((t) => {
+      if (t.status === 'ACTIVE') active += 1
+      else if (t.status === 'PENDING') pending += 1
+      else if (t.status === 'NOTICE_PERIOD') noticePeriod += 1
+      else if (t.status === 'MOVED_OUT') movedOut += 1
+
+      if (t.status !== 'MOVED_OUT' && t.expectedEndDate) {
+        const stay = calculateStayDuration(t.expectedEndDate)
+        if (stay.isEndingSoon) endingSoon += 1
+      }
+    })
+
+    return {
+      totalTenants: tenants.length,
+      active,
+      pending,
+      noticePeriod,
+      movedOut,
+      endingSoon,
+    }
+  }, [tenants])
 
   // Filtered tenants list
   const filteredTenants = useMemo(() => {
@@ -123,47 +211,39 @@ export default function OwnerTenantsPage() {
     }, 3500)
   }
 
-  // Submit New Tenant Admission
-  const handleAddTenantSubmit = (e) => {
+  // Submit New Tenant Admission via API
+  const handleAddTenantSubmit = async (e) => {
     e.preventDefault()
     if (!newTenantName.trim() || !newTenantPhone.trim()) {
       alert('Please fill in tenant name and phone number.')
       return
     }
 
-    const assignedRoom = initialRooms.find((r) => r.id === newTenantRoomId)
+    try {
+      const created = await createOwnerTenant({
+        full_name: newTenantName.trim(),
+        phone: newTenantPhone.trim(),
+        email: newTenantEmail.trim() || 'resident@example.com',
+        occupation: newTenantOccupation.trim() || 'Working Professional',
+        emergency_contact_name: newTenantEmergency.trim() || 'Family Member',
+        room_id: newTenantRoomId,
+        bed_id: newTenantBedId,
+        move_in_date: newTenantMoveIn,
+        expected_end_date: newTenantEnd,
+        monthly_rent: Number(newTenantRent),
+        security_deposit: Number(newTenantDeposit),
+        status: 'ACTIVE',
+      })
 
-    const newEntry = {
-      id: `TEN-${Math.floor(100 + Math.random() * 900)}`,
-      name: newTenantName.trim(),
-      phone: newTenantPhone.trim(),
-      email: newTenantEmail.trim() || 'resident@example.com',
-      occupation: newTenantOccupation.trim() || 'Working Professional',
-      emergencyContact: newTenantEmergency.trim() || 'Verified Family Member',
-      roomId: newTenantRoomId,
-      roomNumber: assignedRoom ? assignedRoom.roomNumber : 'Room 101',
-      bedId: newTenantBedId,
-      bedCode: `Bed ${newTenantBedId.split('-')[1] || 'A'}`,
-      roomType: assignedRoom ? assignedRoom.roomType : 'Double Sharing',
-      floor: assignedRoom ? assignedRoom.floor : 'Floor 1',
-      moveInDate: newTenantMoveIn,
-      expectedEndDate: newTenantEnd,
-      noticePeriod: '1 Month',
-      monthlyRent: Number(newTenantRent),
-      securityDeposit: Number(newTenantDeposit),
-      nextDueDate: newTenantMoveIn,
-      outstandingAmount: 0,
-      paymentStatus: 'PAID',
-      status: 'ACTIVE',
-      notes: 'New admission enrolled via Owner Portal.',
+      await loadTenants()
+      setAddTenantModalOpen(false)
+      setToastMessage(`Tenant ${created.tenant?.full_name || newTenantName} successfully enrolled!`)
+      setTimeout(() => {
+        setToastMessage('')
+      }, 3500)
+    } catch (err) {
+      alert(err.message || 'Failed to enroll tenant.')
     }
-
-    setTenants((prev) => [newEntry, ...prev])
-    setAddTenantModalOpen(false)
-    setToastMessage(`Tenant ${newEntry.name} successfully admitted to ${newEntry.roomNumber}!`)
-    setTimeout(() => {
-      setToastMessage('')
-    }, 3500)
   }
 
   // Account Creation Handlers
@@ -1298,13 +1378,23 @@ Your resident portal account has been activated!
                       id="adm-room"
                       className="assign-form-select"
                       value={newTenantRoomId}
-                      onChange={(e) => setNewTenantRoomId(e.target.value)}
+                      onChange={(e) => {
+                        const rId = e.target.value
+                        setNewTenantRoomId(rId)
+                        const selRoom = roomsList.find((r) => r.id === rId)
+                        const availB = (selRoom?.beds || []).find((b) => b.status === 'AVAILABLE') || selRoom?.beds?.[0]
+                        if (availB) setNewTenantBedId(availB.id)
+                      }}
                     >
-                      {initialRooms.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.roomNumber} ({r.floor} • {r.roomType})
-                        </option>
-                      ))}
+                      {roomsList.length > 0 ? (
+                        roomsList.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.room_number ? `Room ${r.room_number}` : r.roomNumber} ({r.floor ? `Floor ${r.floor}` : ''} • {r.room_type || r.roomType})
+                          </option>
+                        ))
+                      ) : (
+                        <option value="">No rooms configured</option>
+                      )}
                     </select>
                   </div>
                   <div className="assign-form-group">
@@ -1315,15 +1405,16 @@ Your resident portal account has been activated!
                       value={newTenantBedId}
                       onChange={(e) => setNewTenantBedId(e.target.value)}
                     >
-                      <option value="101-B">Bed B (Room 101)</option>
-                      <option value="101-C">Bed C (Room 101)</option>
-                      <option value="104-B">Bed B (Room 104)</option>
-                      <option value="201-B">Bed B (Room 201)</option>
-                      <option value="202-B">Bed B (Room 202)</option>
-                      <option value="204-B">Bed B (Room 204)</option>
-                      <option value="301-A">Bed A (Room 301)</option>
-                      <option value="303-B">Bed B (Room 303)</option>
-                      <option value="305-B">Bed B (Room 305)</option>
+                      {(() => {
+                        const selRoom = roomsList.find((r) => r.id === newTenantRoomId)
+                        const beds = selRoom?.beds || []
+                        if (beds.length === 0) return <option value="">No beds</option>
+                        return beds.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.bed_code || b.bedCode} ({b.status})
+                          </option>
+                        ))
+                      })()}
                     </select>
                   </div>
                 </div>
