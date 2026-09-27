@@ -44,9 +44,21 @@ CORS(
     supports_credentials=True,
 )
 
-# Supabase credentials from backend/.env
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "").strip()
-SUPABASE_SECRET_KEY = os.environ.get("SUPABASE_SECRET_KEY", "").strip()
+# Supabase credentials from backend/.env or Cloud Environment (Render/Heroku/AWS)
+SUPABASE_URL = (
+    os.environ.get("SUPABASE_URL")
+    or os.environ.get("VITE_SUPABASE_URL")
+    or os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
+    or ""
+).strip()
+SUPABASE_SECRET_KEY = (
+    os.environ.get("SUPABASE_SECRET_KEY")
+    or os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    or os.environ.get("SUPABASE_SERVICE_KEY")
+    or os.environ.get("SUPABASE_KEY")
+    or os.environ.get("SUPABASE_ANON_KEY")
+    or ""
+).strip()
 
 COOKIE_NAME = "urbannest_access_token"
 DEMO_HOSTEL_NAME = "UrbanNest Hostel"
@@ -614,6 +626,7 @@ def health_check():
             "status": "degraded",
             "service": "hostel-crm-backend",
             "database": "error",
+            "error_detail": str(e),
         }), 200
 
 
