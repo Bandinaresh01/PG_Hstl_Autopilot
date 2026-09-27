@@ -2621,7 +2621,43 @@ def create_enquiry():
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
-        res = db.table("enquiries").insert(insert_payload).execute()
+        try:
+            res = db.table("enquiries").insert(insert_payload).execute()
+        except Exception as insert_err:
+            err_str = str(insert_err)
+            if "PGRST204" in err_str or "Could not find the" in err_str or "column" in err_str:
+                logger.warning(f"Enquiry column mismatch in schema cache, falling back to message packing: {err_str}")
+                details = []
+                if email:
+                    details.append(f"Email: {email}")
+                if preferred_room:
+                    details.append(f"Room: {preferred_room}")
+                if raw_move_in:
+                    details.append(f"Move-in: {raw_move_in}")
+                if occupation:
+                    details.append(f"Occupation: {occupation}")
+                if message:
+                    details.append(f"Notes: {message}")
+
+                fallback_payload = {
+                    "name": name,
+                    "phone": phone,
+                    "message": " | ".join(details) if details else (message or "Website room enquiry"),
+                }
+                if hostel_id:
+                    fallback_payload["hostel_id"] = hostel_id
+
+                try:
+                    res = db.table("enquiries").insert(fallback_payload).execute()
+                except Exception as fb_err:
+                    if "hostel_id" in str(fb_err):
+                        fallback_payload.pop("hostel_id", None)
+                        res = db.table("enquiries").insert(fallback_payload).execute()
+                    else:
+                        raise fb_err
+            else:
+                raise insert_err
+
         if not res.data or len(res.data) == 0:
             logger.error("Enquiry insert returned empty data")
             return jsonify({"error": "Failed to save enquiry to database"}), 500
