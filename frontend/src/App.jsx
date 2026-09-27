@@ -26,6 +26,7 @@ import OwnerVisitorsPage from './pages/owner/OwnerVisitorsPage'
 import OwnerAnnouncementsPage from './pages/owner/OwnerAnnouncementsPage'
 import OwnerReportsPage from './pages/owner/OwnerReportsPage'
 import OwnerSettingsPage from './pages/owner/OwnerSettingsPage'
+import OwnerPropertyPage from './pages/owner/OwnerPropertyPage'
 
 // Tenant Portal imports
 import TenantLoginPage from './pages/tenant/TenantLoginPage'
@@ -68,6 +69,7 @@ function App() {
             <Route path="maintenance" element={<OwnerMaintenancePage />} />
             <Route path="announcements" element={<OwnerAnnouncementsPage />} />
             <Route path="reports" element={<OwnerReportsPage />} />
+            <Route path="property" element={<OwnerPropertyPage />} />
             <Route path="settings" element={<OwnerSettingsPage />} />
           </Route>
         </Route>

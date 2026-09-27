@@ -31,6 +31,7 @@ export default function OwnerLayout() {
     if (path.includes('/owner/leads')) return 'Leads / Enquiries'
     if (path.includes('/owner/bookings')) return 'Bookings'
     if (path.includes('/owner/rooms')) return 'Rooms & Beds'
+    if (path.includes('/owner/property')) return 'Property Setup & Hierarchy'
     if (path.includes('/owner/tenants')) return 'Tenants'
     if (path.includes('/owner/payments')) return 'Payments'
     if (path.includes('/owner/dues')) return 'Rent Dues & Timeline'
@@ -90,6 +91,22 @@ export default function OwnerLayout() {
           <path d="M2 8h18a2 2 0 0 1 2 2v10" />
           <path d="M2 17h20" />
           <path d="M6 8v9" />
+        </svg>
+      ),
+    },
+    {
+      to: '/owner/property',
+      label: 'Property Setup',
+      icon: (
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M3 21h18" />
+          <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" />
+          <path d="M9 9h1" />
+          <path d="M9 13h1" />
+          <path d="M9 17h1" />
+          <path d="M14 9h1" />
+          <path d="M14 13h1" />
+          <path d="M14 17h1" />
         </svg>
       ),
     },

@@ -489,11 +489,68 @@ export async function createOwnerWalkInVisitor(payload) {
 }
 
 // ============================================================================
+// PROPERTY & FLOORS CLIENT METHODS
+// ============================================================================
+
+export async function fetchOwnerProperty() {
+  const response = await fetch(`${API_BASE_URL}/api/owner/property`, {
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch property configuration.')
+  }
+  return data
+}
+
+export async function fetchOwnerFloors() {
+  const response = await fetch(`${API_BASE_URL}/api/owner/floors`, {
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch floors.')
+  }
+  return data
+}
+
+export async function createOwnerFloor(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/floors`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to create floor.')
+  }
+  return data
+}
+
+export async function updateOwnerFloor(floorId, payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/floors/${floorId}`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update floor.')
+  }
+  return data
+}
+
+// ============================================================================
 // ROOMS & BEDS CLIENT METHODS
 // ============================================================================
 
-export async function fetchOwnerRooms() {
-  const response = await fetch(`${API_BASE_URL}/api/owner/rooms`, {
+export async function fetchOwnerRooms(floorId = '') {
+  const qs = floorId ? `?floor_id=${encodeURIComponent(floorId)}` : ''
+  const response = await fetch(`${API_BASE_URL}/api/owner/rooms${qs}`, {
     headers: buildAuthHeaders(),
     credentials: 'include',
   })
@@ -514,6 +571,44 @@ export async function createOwnerRoom(payload) {
   const data = await response.json().catch(() => ({}))
   if (!response.ok) {
     throw new Error(data.error || 'Failed to create room.')
+  }
+  return data
+}
+
+export async function fetchOwnerSingleRoom(roomId) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/rooms/${roomId}`, {
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch room details.')
+  }
+  return data
+}
+
+export async function updateOwnerRoom(roomId, payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/rooms/${roomId}`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update room.')
+  }
+  return data
+}
+
+export async function fetchOwnerRoomBeds(roomId) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/rooms/${roomId}/beds`, {
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch room beds.')
   }
   return data
 }

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { fetchOwnerRooms, createOwnerRoom, createOwnerTenant, updateOwnerBedStatus } from '../../utils/ownerAuth'
 import { calculateStayDuration } from '../../data/tenantsData'
 import './OwnerRoomsPage.css'
@@ -241,6 +242,14 @@ export default function OwnerRoomsPage() {
           </p>
         </div>
         <div className="rooms-header-actions" style={{ display: 'flex', gap: '8px' }}>
+          <Link
+            to="/owner/property"
+            className="quick-action-btn secondary"
+            style={{ backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #cbd5e1', textDecoration: 'none' }}
+          >
+            <span className="btn-icon">🏢</span>
+            <span>Property Setup</span>
+          </Link>
           <button
             type="button"
             className="quick-action-btn secondary"

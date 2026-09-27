@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useOwnerAuth } from '../../utils/ownerAuth'
 import './OwnerSettingsPage.css'
 
@@ -116,6 +117,14 @@ export default function OwnerSettingsPage() {
           >
             <span>💰</span>
             <span>Pricing &amp; Policies</span>
+          </button>
+          <button
+            type="button"
+            className={`settings-nav-btn ${activeTab === 'property' ? 'active' : ''}`}
+            onClick={() => setActiveTab('property')}
+          >
+            <span>🏢</span>
+            <span>Property &amp; Floors</span>
           </button>
           <button
             type="button"
@@ -356,6 +365,62 @@ export default function OwnerSettingsPage() {
                 <button type="button" className="btn-settings-save" onClick={() => handleSave('Pricing & Policies')}>
                   Save Policy Settings
                 </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'property' && (
+            <div>
+              <h2 className="settings-section-title">Property Setup &amp; Hierarchy</h2>
+              <p className="settings-section-desc">
+                Configure dynamic floors, rooms, bed capacity, monthly rent per person, and deposits.
+              </p>
+
+              <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px', margin: '20px 0' }}>
+                <h3 style={{ margin: '0 0 10px', fontSize: '1.1rem', color: '#0f172a' }}>
+                  Hostel Architecture &amp; Room Allocation
+                </h3>
+                <p style={{ color: '#64748b', fontSize: '0.9rem', lineHeight: '1.6', margin: '0 0 20px' }}>
+                  UrbanNest CRM uses a strict relational property hierarchy: <strong>Hostel &rarr; Floors &rarr; Rooms &rarr; Beds</strong>.
+                  All numbers, rents, and capacities are owner-controlled and stored directly in your Supabase database.
+                </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '24px' }}>
+                  <div style={{ background: '#ffffff', padding: '16px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>MONTHLY RENT</div>
+                    <div style={{ fontSize: '1rem', color: '#0f172a', fontWeight: 700, marginTop: '4px' }}>Per Bed / Person</div>
+                    <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>Configurable per room type</div>
+                  </div>
+                  <div style={{ background: '#ffffff', padding: '16px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>BED GENERATION</div>
+                    <div style={{ fontSize: '1rem', color: '#0f172a', fontWeight: 700, marginTop: '4px' }}>Automatic Lettering</div>
+                    <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>Bed A, Bed B, Bed C...</div>
+                  </div>
+                  <div style={{ background: '#ffffff', padding: '16px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>CAPACITY GUARD</div>
+                    <div style={{ fontSize: '1rem', color: '#0f172a', fontWeight: 700, marginTop: '4px' }}>Occupancy Protected</div>
+                    <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>Cannot drop below occupants</div>
+                  </div>
+                </div>
+
+                <Link
+                  to="/owner/property"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    backgroundColor: '#2563eb',
+                    color: '#ffffff',
+                    padding: '10px 18px',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <span>Open Property Setup &amp; Hierarchy Manager</span>
+                  <span>&rarr;</span>
+                </Link>
               </div>
             </div>
           )}

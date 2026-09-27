@@ -147,6 +147,16 @@ export default function OwnerDashboardPage() {
   const upcomingStayEnds = dashboardData?.upcoming_stay_end_dates || []
   const recentActivity = (dashboardData?.recent_activity || []).slice(0, 5)
 
+  const propertyOverview = dashboardData?.property_overview || {
+    floors_count: 0,
+    rooms_count: summary.total_rooms,
+    beds_count: summary.total_beds,
+    occupied_beds: summary.occupied_beds,
+    available_beds: summary.available_beds,
+    occupancy_rate: summary.occupancy_rate,
+    floor_summaries: [],
+  }
+
   // Real Attention Items
   const attentionItems = []
   if (enquiriesKpi.new > 0) {
@@ -227,6 +237,14 @@ export default function OwnerDashboardPage() {
           >
             <span className="btn-icon">+</span>
             <span>Add Room</span>
+          </Link>
+          <Link
+            to="/owner/property"
+            className="quick-action-btn"
+            style={{ textDecoration: 'none' }}
+          >
+            <span className="btn-icon">🏢</span>
+            <span>Property Setup</span>
           </Link>
           <Link
             to="/owner/payments"
@@ -429,6 +447,30 @@ export default function OwnerDashboardPage() {
               <span>Total Inventory: <strong>{summary.total_beds} Beds in {summary.total_rooms} Rooms</strong></span>
               <Link to="/owner/rooms" style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
                 View Floor Plans &rarr;
+              </Link>
+            </div>
+
+            {propertyOverview.floor_summaries && propertyOverview.floor_summaries.length > 0 && (
+              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                  Floor Summaries ({propertyOverview.floors_count} Floors)
+                </span>
+                {propertyOverview.floor_summaries.map((fl) => (
+                  <div key={fl.floor_number} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
+                    <span style={{ fontWeight: 600, color: '#1e293b' }}>
+                      {fl.floor_name || `Floor ${fl.floor_number}`} ({fl.rooms_count} Rooms, {fl.beds_count} Beds)
+                    </span>
+                    <span style={{ color: fl.available_beds > 0 ? '#16a34a' : '#64748b', fontWeight: 500 }}>
+                      {fl.occupied_beds}/{fl.beds_count} Occupied ({fl.occupancy_rate}%)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Link to="/owner/property" style={{ color: '#2563eb', fontWeight: 600, fontSize: '0.82rem', textDecoration: 'none' }}>
+                🏢 Configure Floors &amp; Property Structure &rarr;
               </Link>
             </div>
           </div>

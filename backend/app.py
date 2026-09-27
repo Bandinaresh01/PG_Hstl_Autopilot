@@ -1664,6 +1664,16 @@ def get_owner_dashboard():
                 "visitors_inside": visitor_metrics["inside_now"],
                 "pending_visitors": visitor_metrics["pending_approval"],
             },
+            "property_overview": {
+                "floors_count": room_stats.get("floors_count", 0),
+                "total_rooms": room_stats["total_rooms"],
+                "total_beds": room_stats["total_beds"],
+                "occupied_beds": room_stats["occupied_beds"],
+                "available_beds": room_stats["available_beds"],
+                "reserved_beds": room_stats["reserved_beds"],
+                "occupancy_rate": room_stats["occupancy_rate"],
+                "floors": room_stats.get("floors", []),
+            },
             "upcoming_stay_end_dates": tenant_stats["upcoming_stay_end_dates"],
             "upcoming_bookings_list": booking_stats["upcoming_bookings"][:5],
             "recent_enquiries": recent_enquiries,
@@ -1677,17 +1687,101 @@ def get_owner_dashboard():
 
 
 # ============================================================================
-# 3A. ROOMS & BEDS ENDPOINTS (/api/owner/rooms, /api/owner/beds)
 # ============================================================================
+# 3A. PROPERTY, FLOORS, ROOMS & BEDS ENDPOINTS
+# ============================================================================
+
+@app.route("/api/owner/property", methods=["GET"])
+@owner_required
+def get_owner_property():
+    """Retrieve complete hostel property configuration, floor summaries, and occupancy."""
+    try:
+        owner = g.current_owner
+        service = get_room_service(get_db_client())
+        summary = service.get_property_summary(owner["hostel_id"])
+        return jsonify({
+            "hostel": {
+                "id": owner["hostel_id"],
+                "name": owner["hostel_name"],
+                "location": owner["hostel_location"],
+            },
+            "property": summary,
+            "summary": summary,
+            "floors": summary["floors"],
+        }), 200
+    except Exception as e:
+        logger.error(f"Error fetching property configuration: {e}")
+        return jsonify({"error": f"Failed to retrieve property configuration: {str(e)}"}), 500
+
+
+@app.route("/api/owner/floors", methods=["GET"])
+@owner_required
+def get_owner_floors():
+    """List all floors for the owner's hostel with room and bed counts."""
+    try:
+        owner = g.current_owner
+        service = get_room_service(get_db_client())
+        floors = service.get_floors(owner["hostel_id"])
+        return jsonify({
+            "floors": floors,
+            "count": len(floors)
+        }), 200
+    except Exception as e:
+        logger.error(f"Error fetching floors: {e}")
+        return jsonify({"error": f"Failed to retrieve floors: {str(e)}"}), 500
+
+
+@app.route("/api/owner/floors", methods=["POST"])
+@owner_required
+def create_owner_floor():
+    """Add a new floor to the owner's hostel."""
+    try:
+        owner = g.current_owner
+        payload = request.get_json(silent=True) or {}
+        service = get_room_service(get_db_client())
+        created = service.create_floor(owner["hostel_id"], payload)
+        return jsonify({
+            "success": True,
+            "message": f"Floor '{created.get('floor_name')}' created successfully.",
+            "floor": created
+        }), 201
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        logger.error(f"Error creating floor: {e}")
+        return jsonify({"error": f"Failed to create floor: {str(e)}"}), 500
+
+
+@app.route("/api/owner/floors/<floor_id>", methods=["PATCH"])
+@owner_required
+def update_owner_floor(floor_id):
+    """Update floor details (name, order, status)."""
+    try:
+        owner = g.current_owner
+        payload = request.get_json(silent=True) or {}
+        service = get_room_service(get_db_client())
+        updated = service.update_floor(owner["hostel_id"], floor_id, payload)
+        return jsonify({
+            "success": True,
+            "message": "Floor updated successfully.",
+            "floor": updated
+        }), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        logger.error(f"Error updating floor {floor_id}: {e}")
+        return jsonify({"error": f"Failed to update floor: {str(e)}"}), 500
+
 
 @app.route("/api/owner/rooms", methods=["GET"])
 @owner_required
 def get_owner_rooms():
-    """List all rooms for the owner's hostel with nested beds and occupancy data."""
+    """List all rooms for the owner's hostel, optionally filtered by floor_id."""
     try:
         owner = g.current_owner
+        floor_id = request.args.get("floor_id")
         service = get_room_service(get_db_client())
-        rooms = service.get_rooms(owner["hostel_id"])
+        rooms = service.get_rooms(owner["hostel_id"], floor_id=floor_id)
         stats = service.get_stats(owner["hostel_id"])
         return jsonify({
             "rooms": rooms,
@@ -1701,7 +1795,7 @@ def get_owner_rooms():
 @app.route("/api/owner/rooms", methods=["POST"])
 @owner_required
 def create_owner_room():
-    """Create a new room in the owner's hostel."""
+    """Create a new room in the owner's hostel and auto-generate its beds."""
     try:
         owner = g.current_owner
         payload = request.get_json(silent=True) or {}
@@ -1709,7 +1803,7 @@ def create_owner_room():
         created = service.create_room(owner["hostel_id"], payload)
         return jsonify({
             "success": True,
-            "message": f"Room {created['room_number']} created successfully.",
+            "message": f"Room {created['room_number']} created successfully with {created.get('total_beds', 0)} beds.",
             "room": created
         }), 201
     except ValueError as ve:
@@ -1722,7 +1816,7 @@ def create_owner_room():
 @app.route("/api/owner/rooms/<room_id>", methods=["GET"])
 @owner_required
 def get_owner_single_room(room_id):
-    """Retrieve details for a single room."""
+    """Retrieve details for a single room with its beds and active tenants."""
     try:
         owner = g.current_owner
         service = get_room_service(get_db_client())
@@ -1735,21 +1829,64 @@ def get_owner_single_room(room_id):
         return jsonify({"error": "Failed to retrieve room."}), 500
 
 
+@app.route("/api/owner/rooms/<room_id>", methods=["PATCH"])
+@owner_required
+def update_owner_room(room_id):
+    """
+    Update room configuration (rent, deposit, type, capacity, status).
+    Guards against reducing capacity below occupied/reserved beds count.
+    Supports propagating updated rent to active room tenants.
+    """
+    try:
+        owner = g.current_owner
+        payload = request.get_json(silent=True) or {}
+        service = get_room_service(get_db_client())
+        updated = service.update_room(owner["hostel_id"], room_id, payload)
+        return jsonify({
+            "success": True,
+            "message": f"Room {updated.get('room_number', '')} updated successfully.",
+            "room": updated
+        }), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        logger.error(f"Error updating room {room_id}: {e}")
+        return jsonify({"error": f"Failed to update room: {str(e)}"}), 500
+
+
+@app.route("/api/owner/rooms/<room_id>/beds", methods=["GET"])
+@owner_required
+def get_owner_room_beds(room_id):
+    """List all beds in a specific room."""
+    try:
+        owner = g.current_owner
+        service = get_room_service(get_db_client())
+        room = service.get_room_by_id(room_id, owner["hostel_id"])
+        if not room:
+            return jsonify({"error": "Room not found."}), 404
+        return jsonify({
+            "room_id": room["id"],
+            "room_number": room["room_number"],
+            "beds": room.get("beds", [])
+        }), 200
+    except Exception as e:
+        logger.error(f"Error fetching room beds: {e}")
+        return jsonify({"error": f"Failed to retrieve beds: {str(e)}"}), 500
+
+
 @app.route("/api/owner/rooms/<room_id>/beds", methods=["POST"])
 @owner_required
 def add_owner_bed_to_room(room_id):
-    """Add a bed to an existing room."""
+    """Add a bed to an existing room and increase capacity."""
     try:
         owner = g.current_owner
         payload = request.get_json(silent=True) or {}
         bed_code = payload.get("bed_code")
-        if not bed_code:
-            return jsonify({"error": "Bed code is required."}), 400
         service = get_room_service(get_db_client())
         new_bed = service.add_bed(owner["hostel_id"], room_id, bed_code)
         return jsonify({
             "success": True,
-            "message": f"Bed {bed_code} added successfully.",
+            "message": f"Bed {new_bed.get('bed_code')} added successfully.",
             "bed": new_bed
         }), 201
     except ValueError as ve:
