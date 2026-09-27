@@ -3,6 +3,7 @@ import re
 import secrets
 import string
 import logging
+import uuid
 from datetime import datetime, timezone
 from functools import wraps
 from dotenv import load_dotenv
@@ -32,10 +33,12 @@ CORS(
                 "http://127.0.0.1:5173",
                 "http://localhost:5000",
                 "http://127.0.0.1:5000",
+                re.compile(r"^https://.*\.vercel\.app$"),
                 re.compile(r"^https://.*"),
             ],
             "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
+            "allow_headers": "*",
+            "expose_headers": ["Content-Type", "Authorization", "Set-Cookie"],
         }
     },
     supports_credentials=True,
@@ -46,9 +49,34 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL", "").strip()
 SUPABASE_SECRET_KEY = os.environ.get("SUPABASE_SECRET_KEY", "").strip()
 
 COOKIE_NAME = "urbannest_access_token"
-DEMO_HOSTEL_ID = "11111111-1111-1111-1111-111111111111"
 DEMO_HOSTEL_NAME = "UrbanNest Hostel"
 DEMO_HOSTEL_LOCATION = "Hyderabad, Telangana"
+DEFAULT_HOSTEL_ID = "020f1800-c239-4a9f-9cf5-2012f4a9415d"
+DEMO_HOSTEL_ID = DEFAULT_HOSTEL_ID
+
+_cached_hostel_id = None
+
+
+def get_default_hostel_id(db: Client = None) -> str:
+    """
+    Resolve active UrbanNest Hostel UUID dynamically from Supabase hostels table.
+    """
+    global _cached_hostel_id
+    if _cached_hostel_id:
+        return _cached_hostel_id
+    try:
+        client = db or get_db_client()
+        res = client.table("hostels").select("id").eq("name", DEMO_HOSTEL_NAME).limit(1).execute()
+        if res.data and len(res.data) > 0:
+            _cached_hostel_id = res.data[0]["id"]
+            return _cached_hostel_id
+        res_any = client.table("hostels").select("id").limit(1).execute()
+        if res_any.data and len(res_any.data) > 0:
+            _cached_hostel_id = res_any.data[0]["id"]
+            return _cached_hostel_id
+    except Exception as e:
+        logger.warning(f"Could not resolve hostel id from db: {e}")
+    return DEFAULT_HOSTEL_ID
 
 
 def get_db_client() -> Client:
@@ -77,6 +105,7 @@ from room_service import get_room_service
 from tenant_service import get_tenant_service
 from booking_service import get_booking_service
 from dashboard_service import get_dashboard_service
+from announcement_service import get_announcement_service
 
 _payment_repo = None
 _complaints_repo = None
@@ -90,6 +119,11 @@ def get_payment_repo():
         except Exception:
             db = None
         _payment_repo = PaymentRepository(db)
+    elif _payment_repo.db is None:
+        try:
+            _payment_repo.db = get_db_client()
+        except Exception:
+            pass
     return _payment_repo
 
 
@@ -101,6 +135,11 @@ def get_complaints_repo():
         except Exception:
             db = None
         _complaints_repo = ComplaintsMaintenanceRepository(db)
+    elif _complaints_repo.db is None:
+        try:
+            _complaints_repo.db = get_db_client()
+        except Exception:
+            pass
     return _complaints_repo
 
 
@@ -111,18 +150,20 @@ try:
     # Initialize repositories & domain services
     get_payment_repo()
     get_complaints_repo()
-    get_visitors_repo()
+    get_visitors_repo(_startup_client)
     get_room_service(_startup_client)
     get_tenant_service(_startup_client)
     get_booking_service(_startup_client)
+    get_announcement_service(_startup_client)
     get_dashboard_service(
         _startup_client,
         get_payment_repo(),
         get_complaints_repo(),
-        get_visitors_repo()
+        get_visitors_repo(_startup_client)
     )
 except Exception as e:
     logger.error(f"Failed to initialize Supabase client: {e}")
+
 
 
 # ============================================================================
@@ -178,11 +219,53 @@ def resolve_user_profile(auth_user) -> dict:
 
             role = (row.get("role") or combined_meta.get("role") or "").upper()
             default_onboarding = True if role == "OWNER" else False
+            t_room_num = combined_meta.get("room_number", "Room 102")
+            t_bed_code = combined_meta.get("bed_code", "Bed A")
+            t_room_type = combined_meta.get("room_type", "Double Sharing")
+            t_floor = combined_meta.get("floor", "Floor 1")
+            t_move_in = combined_meta.get("move_in_date", "2026-06-01")
+            t_expected_end = combined_meta.get("expected_end_date", "2027-05-31")
+            t_rent = combined_meta.get("monthly_rent", 8500)
+            t_emergency = combined_meta.get("emergency_contact", "")
+
+            if role == "TENANT":
+                try:
+                    t_lookup = db.table("tenants").select("*").eq("profile_id", row.get("id")).limit(1).execute()
+                    if not t_lookup.data and email:
+                        t_lookup = db.table("tenants").select("*").eq("email", email.lower()).limit(1).execute()
+                    if t_lookup.data:
+                        t_row = t_lookup.data[0]
+                        if t_row.get("monthly_rent"):
+                            t_rent = t_row.get("monthly_rent")
+                        if t_row.get("move_in_date"):
+                            t_move_in = str(t_row.get("move_in_date"))
+                        if t_row.get("expected_end_date"):
+                            t_expected_end = str(t_row.get("expected_end_date"))
+                        if t_row.get("emergency_contact_name"):
+                            t_emergency = t_row.get("emergency_contact_name")
+                        if t_row.get("room_id"):
+                            r_lookup = db.table("rooms").select("room_number, room_type, floor").eq("id", t_row["room_id"]).limit(1).execute()
+                            if r_lookup.data:
+                                r_data = r_lookup.data[0]
+                                raw_r_num = str(r_data.get("room_number", ""))
+                                t_room_num = f"Room {raw_r_num}" if not raw_r_num.startswith("Room") else raw_r_num
+                                rt = r_data.get("room_type", "")
+                                t_room_type = "Single Sharing" if rt == "SINGLE" else ("Triple Sharing" if rt == "TRIPLE" else "Double Sharing")
+                                t_floor = f"Floor {r_data.get('floor')}" if r_data.get("floor") else "Floor 1"
+                        if t_row.get("bed_id"):
+                            b_lookup = db.table("beds").select("bed_code").eq("id", t_row["bed_id"]).limit(1).execute()
+                            if b_lookup.data:
+                                raw_b_code = str(b_lookup.data[0].get("bed_code", ""))
+                                t_bed_code = f"Bed {raw_b_code}" if not raw_b_code.startswith("Bed") else raw_b_code
+                except Exception as t_err:
+                    logger.debug(f"Tenant profile detail lookup note: {t_err}")
+
             onboarding_val = row.get("onboarding_completed")
             if onboarding_val is None:
                 onboarding_val = combined_meta.get("onboarding_completed", default_onboarding)
 
             return {
+                "id": row.get("id"),
                 "auth_user_id": auth_user_id,
                 "email": email,
                 "user_code": row.get("user_code") or combined_meta.get("user_code", "TEN-1001" if role == "TENANT" else "OWN-001"),
@@ -192,14 +275,14 @@ def resolve_user_profile(auth_user) -> dict:
                 "hostel_id": hostel_id,
                 "hostel_name": hostel_name,
                 "hostel_location": hostel_location,
-                "room_number": combined_meta.get("room_number", "Room 204"),
-                "bed_code": combined_meta.get("bed_code", "Bed A"),
-                "room_type": combined_meta.get("room_type", "Double Sharing"),
-                "floor": combined_meta.get("floor", "Floor 2"),
-                "move_in_date": combined_meta.get("move_in_date", "2026-09-01"),
-                "expected_end_date": combined_meta.get("expected_end_date", "2027-03-01"),
-                "emergency_contact": combined_meta.get("emergency_contact", ""),
-                "monthly_rent": combined_meta.get("monthly_rent", 8500),
+                "room_number": t_room_num,
+                "bed_code": t_bed_code,
+                "room_type": t_room_type,
+                "floor": t_floor,
+                "move_in_date": t_move_in,
+                "expected_end_date": t_expected_end,
+                "emergency_contact": t_emergency,
+                "monthly_rent": t_rent,
                 "is_active": bool(row.get("is_active", combined_meta.get("is_active", True))),
                 "onboarding_completed": bool(onboarding_val),
             }
@@ -215,13 +298,14 @@ def resolve_user_profile(auth_user) -> dict:
     role = str(combined_meta.get("role", "")).upper()
     default_onboarding = True if role == "OWNER" else False
     return {
+        "id": None,
         "auth_user_id": auth_user_id,
         "email": email,
         "user_code": combined_meta.get("user_code", "TEN-1001" if role == "TENANT" else "OWN-001"),
         "full_name": combined_meta.get("full_name", "Hostel Resident" if role == "TENANT" else "Rajesh Kumar"),
         "phone": combined_meta.get("phone", ""),
         "role": role,
-        "hostel_id": combined_meta.get("hostel_id", DEMO_HOSTEL_ID),
+        "hostel_id": combined_meta.get("hostel_id", get_default_hostel_id(db)),
         "hostel_name": combined_meta.get("hostel_name", DEMO_HOSTEL_NAME),
         "hostel_location": combined_meta.get("city", DEMO_HOSTEL_LOCATION),
         "room_number": combined_meta.get("room_number", "Room 204"),
@@ -303,15 +387,18 @@ def verify_tenant_authorization(profile: dict):
 
 def extract_access_token() -> str:
     """
-    Extract the access token from HttpOnly cookie first, or Authorization Bearer header.
+    Extract the access token from Authorization Bearer header first, or HttpOnly cookie.
+    Authorization Bearer header always takes precedence as it is explicitly sent by the active frontend client.
     """
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+        if token:
+            return token
+
     token = request.cookies.get(COOKIE_NAME)
     if token:
         return token.strip()
-
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        return auth_header.split(" ", 1)[1].strip()
 
     return ""
 
@@ -358,7 +445,43 @@ def tenant_required(f):
                 "error": err_msg
             }), status_code
 
+        # Authoritatively resolve the tenant record from public.tenants
+        tenant_row = None
+        try:
+            db = get_db_client()
+            prof_id = profile.get("id")
+            if prof_id:
+                t_res = db.table("tenants").select("*").eq("profile_id", prof_id).limit(1).execute()
+                if t_res.data:
+                    tenant_row = t_res.data[0]
+
+            if not tenant_row and profile.get("email"):
+                t_res = db.table("tenants").select("*").eq("email", profile["email"].lower()).limit(1).execute()
+                if t_res.data:
+                    tenant_row = t_res.data[0]
+
+            if not tenant_row and profile.get("user_code"):
+                t_res = db.table("tenants").select("*").eq("tenant_code", profile["user_code"]).limit(1).execute()
+                if t_res.data:
+                    tenant_row = t_res.data[0]
+        except Exception as te:
+            logger.debug(f"Tenants table lookup note: {te}")
+
+        if tenant_row:
+            profile["tenant_id"] = tenant_row.get("id")
+            if tenant_row.get("room_id"):
+                profile["room_id"] = tenant_row.get("room_id")
+            if tenant_row.get("bed_id"):
+                profile["bed_id"] = tenant_row.get("bed_id")
+            if tenant_row.get("monthly_rent"):
+                profile["monthly_rent"] = tenant_row.get("monthly_rent")
+            tenant_row["room_number"] = profile.get("room_number")
+            tenant_row["bed_code"] = profile.get("bed_code")
+            tenant_row["room_type"] = profile.get("room_type")
+            tenant_row["floor"] = profile.get("floor")
+
         g.current_tenant = profile
+        g.current_tenant_row = tenant_row
         g.auth_user = user_res.user
         return f(*args, **kwargs)
 
@@ -479,7 +602,7 @@ def health_check():
     """Verify Flask API and Supabase connection status."""
     try:
         db = get_db_client()
-        db.table("enquiries").select("id").limit(1).execute()
+        db.table("hostels").select("id").limit(1).execute()
         return jsonify({
             "status": "ok",
             "service": "hostel-crm-backend",
@@ -782,6 +905,98 @@ def complete_tenant_onboarding():
         return jsonify({"error": f"Failed to complete onboarding: {str(e)}"}), 500
 
 
+@app.route("/api/tenant/me", methods=["GET"])
+@tenant_required
+def get_tenant_me():
+    """
+    Return profile, stay, and room info for the authenticated tenant resident.
+    """
+    tenant = g.current_tenant
+    t_row = getattr(g, "current_tenant_row", None) or {}
+    return jsonify({
+        "authenticated": True,
+        "tenant": {
+            "id": t_row.get("id") or tenant.get("id"),
+            "tenant_id": t_row.get("id") or tenant.get("tenant_id") or tenant.get("id"),
+            "user_code": tenant.get("user_code"),
+            "tenant_code": t_row.get("tenant_code") or tenant.get("user_code"),
+            "full_name": t_row.get("full_name") or tenant.get("full_name"),
+            "email": tenant.get("email"),
+            "phone": t_row.get("phone") or tenant.get("phone", ""),
+            "role": "TENANT",
+            "hostel_id": tenant.get("hostel_id"),
+            "hostel_name": tenant.get("hostel_name"),
+            "hostel_location": tenant.get("hostel_location"),
+            "room_id": t_row.get("room_id"),
+            "bed_id": t_row.get("bed_id"),
+            "room_number": t_row.get("room_number") or tenant.get("room_number", "-"),
+            "bed_code": t_row.get("bed_code") or tenant.get("bed_code", "-"),
+            "room_type": t_row.get("room_type") or tenant.get("room_type", "-"),
+            "monthly_rent": t_row.get("monthly_rent") or tenant.get("monthly_rent", 0),
+            "security_deposit": t_row.get("security_deposit", 0),
+            "status": t_row.get("status", "ACTIVE"),
+            "move_in_date": str(t_row.get("move_in_date") or tenant.get("move_in_date", "")),
+            "expected_end_date": str(t_row.get("expected_end_date") or tenant.get("expected_end_date", "")),
+            "emergency_contact": tenant.get("emergency_contact") or t_row.get("emergency_contact_name", ""),
+            "onboarding_completed": bool(tenant.get("onboarding_completed", False)),
+        }
+    }), 200
+
+
+@app.route("/api/tenant/me/announcements", methods=["GET"])
+@tenant_required
+def get_tenant_my_announcements():
+    """
+    List published announcements visible to the authenticated tenant.
+    """
+    try:
+        hostel_id = g.current_tenant.get("hostel_id") or get_default_hostel_id()
+        ann_service = get_announcement_service()
+        items = ann_service.get_tenant_announcements(hostel_id)
+        return jsonify({
+            "announcements": items,
+            "count": len(items)
+        }), 200
+    except Exception as e:
+        logger.error(f"Error fetching tenant announcements: {e}")
+        return jsonify({"error": "Unable to retrieve announcements at this time."}), 500
+
+
+def is_valid_uuid(val):
+    if not val:
+        return False
+    try:
+        uuid.UUID(str(val))
+        return True
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
+def get_tenant_filters_for_request():
+    """
+    Return (tenant_filters: list, hostel_id: str, tenant_row: dict)
+    for the current authenticated tenant request.
+    Strictly filters for valid UUIDs to prevent PostgreSQL 22P02 errors.
+    """
+    tenant = getattr(g, "current_tenant", {}) or {}
+    t_row = getattr(g, "current_tenant_row", None) or {}
+    raw_candidates = [
+        t_row.get("id"),
+        tenant.get("tenant_id"),
+    ]
+    filters = []
+    for c in raw_candidates:
+        if c and is_valid_uuid(c) and str(c) not in filters:
+            filters.append(str(c))
+
+    # Fallback to profile id if it's a valid uuid and no tenant record exists yet
+    if not filters and is_valid_uuid(tenant.get("id")):
+        filters.append(str(tenant["id"]))
+
+    hostel_id = tenant.get("hostel_id") or get_default_hostel_id()
+    return filters, hostel_id, t_row
+
+
 @app.route("/api/tenant/portal/data", methods=["GET"])
 @tenant_required
 def get_tenant_portal_data():
@@ -790,49 +1005,61 @@ def get_tenant_portal_data():
     Never exposes other tenants, hostel accounting, or owner reports.
     """
     tenant = g.current_tenant
-    tenant_filters = [
-        tenant.get("user_code"),
-        tenant.get("email"),
-        tenant.get("auth_user_id"),
-    ]
+    tenant_filters, hostel_id, t_row = get_tenant_filters_for_request()
+
     repo = get_payment_repo()
     financial_summary = repo.get_tenant_payment_summary(
         tenant_id_filters=tenant_filters,
-        hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
-        monthly_rent_fallback=float(tenant.get("monthly_rent") or 8500.0)
+        hostel_id=hostel_id,
+        monthly_rent_fallback=float(t_row.get("monthly_rent") or tenant.get("monthly_rent") or 8500.0)
     )
 
     c_repo = get_complaints_repo()
     complaints_summary = c_repo.get_tenant_complaint_summary(
-        hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+        hostel_id=hostel_id,
         tenant_id_filters=tenant_filters,
     )
 
     v_repo = get_visitors_repo()
     visitors_summary = v_repo.get_tenant_visitor_summary(
-        hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+        hostel_id=hostel_id,
         tenant_id_filters=tenant_filters,
     )
+
+    # Fetch live published announcements
+    ann_service = get_announcement_service()
+    published_announcements = ann_service.get_tenant_announcements(hostel_id)
+    notices = [
+        {
+            "id": a.get("id"),
+            "title": a.get("title"),
+            "body": a.get("message"),
+            "category": a.get("category") or "General",
+            "priority": a.get("priority", "NORMAL"),
+            "publish_at": a.get("publish_at"),
+        }
+        for a in published_announcements
+    ]
 
     return jsonify({
         "profile": {
             "user_code": tenant["user_code"],
-            "full_name": tenant["full_name"],
+            "full_name": t_row.get("full_name") or tenant["full_name"],
             "email": tenant["email"],
-            "phone": tenant.get("phone", ""),
-            "emergency_contact": tenant.get("emergency_contact", "+91 98765 00001 (Guardian)"),
+            "phone": t_row.get("phone") or tenant.get("phone", ""),
+            "emergency_contact": tenant.get("emergency_contact") or t_row.get("emergency_contact_name", "+91 98765 00001 (Guardian)"),
             "hostel_name": tenant.get("hostel_name", DEMO_HOSTEL_NAME),
             "hostel_location": tenant.get("hostel_location", DEMO_HOSTEL_LOCATION),
         },
         "stay": {
-            "room_number": tenant.get("room_number", "Room 204"),
-            "bed_code": tenant.get("bed_code", "Bed A"),
-            "room_type": tenant.get("room_type", "Double Sharing"),
-            "floor": tenant.get("floor", "Floor 2"),
-            "move_in_date": tenant.get("move_in_date", "2026-07-01"),
-            "expected_end_date": tenant.get("expected_end_date", "2026-10-05"),
-            "notice_period": "30 Days Notice Served",
-            "wifi_ssid": "UrbanNest-HighSpeed-F2",
+            "room_number": t_row.get("room_number") or tenant.get("room_number", "-"),
+            "bed_code": t_row.get("bed_code") or tenant.get("bed_code", "-"),
+            "room_type": t_row.get("room_type") or tenant.get("room_type", "-"),
+            "floor": tenant.get("floor", "-"),
+            "move_in_date": str(t_row.get("move_in_date") or tenant.get("move_in_date", "")),
+            "expected_end_date": str(t_row.get("expected_end_date") or tenant.get("expected_end_date", "")),
+            "notice_period": "30 Days Notice",
+            "wifi_ssid": "UrbanNest-HighSpeed",
             "wifi_pass": "NestResident@2026",
         },
         "financials": {
@@ -848,26 +1075,7 @@ def get_tenant_portal_data():
         "active_complaints_count": complaints_summary["open"] + complaints_summary["in_progress"],
         "visitors_summary": visitors_summary,
         "active_visitors_count": visitors_summary["inside"] + visitors_summary["approved"] + visitors_summary["pending"],
-        "notices": [
-            {
-                "id": "not-1",
-                "title": "Dining & Meal Schedule",
-                "body": "Breakfast: 7:30 AM - 9:30 AM | Lunch: 12:30 PM - 2:30 PM | Dinner: 7:45 PM - 10:00 PM.",
-                "category": "Food"
-            },
-            {
-                "id": "not-2",
-                "title": "Hostel Gate Timings",
-                "body": "Main gate closes at 10:30 PM daily. Late entry passes require prior notification via warden portal.",
-                "category": "Security"
-            },
-            {
-                "id": "not-3",
-                "title": "High-Speed Wi-Fi 6 Upgrade",
-                "body": "Floor 1-3 fiber routers upgraded to 300 Mbps symmetrical bandwidth.",
-                "category": "Facility"
-            }
-        ],
+        "notices": notices,
         "active_tickets": []
     }), 200
 
@@ -881,18 +1089,13 @@ def get_tenant_my_payments():
     Supports query parameters: ?status=ALL|PAID|PENDING|OVERDUE|PARTIAL|DUE_SOON
     """
     try:
-        tenant = g.current_tenant
-        tenant_filters = [
-            tenant.get("user_code"),
-            tenant.get("email"),
-            tenant.get("auth_user_id"),
-        ]
+        tenant_filters, hostel_id, _ = get_tenant_filters_for_request()
         status_filter = request.args.get("status", "ALL")
         search_query = request.args.get("search", "")
 
         repo = get_payment_repo()
         payments = repo.get_all(
-            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            hostel_id=hostel_id,
             tenant_id_filters=tenant_filters,
             status_filter=status_filter,
             search_query=search_query,
@@ -915,16 +1118,12 @@ def get_tenant_my_payment_summary():
     """
     try:
         tenant = g.current_tenant
-        tenant_filters = [
-            tenant.get("user_code"),
-            tenant.get("email"),
-            tenant.get("auth_user_id"),
-        ]
+        tenant_filters, hostel_id, t_row = get_tenant_filters_for_request()
         repo = get_payment_repo()
         summary = repo.get_tenant_payment_summary(
             tenant_id_filters=tenant_filters,
-            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
-            monthly_rent_fallback=float(tenant.get("monthly_rent") or 8500.0),
+            hostel_id=hostel_id,
+            monthly_rent_fallback=float(t_row.get("monthly_rent") or tenant.get("monthly_rent") or 8500.0),
         )
         return jsonify(summary), 200
     except Exception as e:
@@ -940,16 +1139,11 @@ def get_tenant_single_payment(payment_id):
     Enforces strict tenant isolation.
     """
     try:
-        tenant = g.current_tenant
-        tenant_filters = [
-            tenant.get("user_code"),
-            tenant.get("email"),
-            tenant.get("auth_user_id"),
-        ]
+        tenant_filters, hostel_id, _ = get_tenant_filters_for_request()
         repo = get_payment_repo()
         payment = repo.get_by_id(
             payment_id=payment_id,
-            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            hostel_id=hostel_id,
             tenant_id_filters=tenant_filters,
         )
         if not payment:
@@ -969,19 +1163,14 @@ def get_tenant_my_complaints():
     Never exposes internal owner_notes or other residents' complaints.
     """
     try:
-        tenant = g.current_tenant
-        tenant_filters = [
-            tenant.get("user_code"),
-            tenant.get("email"),
-            tenant.get("auth_user_id"),
-        ]
+        tenant_filters, hostel_id, _ = get_tenant_filters_for_request()
         repo = get_complaints_repo()
         complaints = repo.get_tenant_complaints(
-            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            hostel_id=hostel_id,
             tenant_id_filters=tenant_filters,
         )
         summary = repo.get_tenant_complaint_summary(
-            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            hostel_id=hostel_id,
             tenant_id_filters=tenant_filters,
         )
         return jsonify({
@@ -1003,8 +1192,10 @@ def create_tenant_my_complaint():
     """
     try:
         tenant = g.current_tenant
-        payload = request.get_json(silent=True) or {}
+        tenant_filters, hostel_id, t_row = get_tenant_filters_for_request()
+        tenant_id = t_row.get("id") or tenant.get("tenant_id") or tenant.get("id")
 
+        payload = request.get_json(silent=True) or {}
         title = (payload.get("title") or "").strip()
         description = (payload.get("description") or "").strip()
         category = (payload.get("category") or "").strip()
@@ -1027,7 +1218,8 @@ def create_tenant_my_complaint():
                 "priority": priority,
                 "location": location,
             },
-            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            hostel_id=hostel_id,
+            tenant_id=tenant_id,
             tenant_profile=tenant,
         )
 
@@ -1050,16 +1242,11 @@ def get_tenant_single_complaint(complaint_id):
     Never exposes internal owner_notes. Enforces strict tenant isolation.
     """
     try:
-        tenant = g.current_tenant
-        tenant_filters = [
-            tenant.get("user_code"),
-            tenant.get("email"),
-            tenant.get("auth_user_id"),
-        ]
+        tenant_filters, hostel_id, _ = get_tenant_filters_for_request()
         repo = get_complaints_repo()
         complaint = repo.get_tenant_complaint_by_id(
             complaint_id=complaint_id,
-            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            hostel_id=hostel_id,
             tenant_id_filters=tenant_filters,
         )
         if not complaint:
@@ -1084,19 +1271,14 @@ def get_tenant_my_visitors():
     and KPI counters.
     """
     try:
-        tenant = g.current_tenant
-        tenant_filters = [
-            tenant.get("user_code"),
-            tenant.get("email"),
-            tenant.get("auth_user_id"),
-        ]
+        tenant_filters, hostel_id, _ = get_tenant_filters_for_request()
         repo = get_visitors_repo()
         visitors = repo.get_tenant_visitors(
-            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            hostel_id=hostel_id,
             tenant_id_filters=tenant_filters,
         )
         summary = repo.get_tenant_visitor_summary(
-            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            hostel_id=hostel_id,
             tenant_id_filters=tenant_filters,
         )
         return jsonify({
@@ -1117,8 +1299,10 @@ def create_tenant_my_visitor():
     """
     try:
         tenant = g.current_tenant
-        payload = request.get_json(silent=True) or {}
+        tenant_filters, hostel_id, t_row = get_tenant_filters_for_request()
+        tenant_id = t_row.get("id") or tenant.get("tenant_id") or tenant.get("id")
 
+        payload = request.get_json(silent=True) or {}
         visitor_name = (payload.get("visitor_name") or "").strip()
         visitor_phone = (payload.get("visitor_phone") or "").strip()
         visit_date = (payload.get("visit_date") or "").strip()
@@ -1133,8 +1317,9 @@ def create_tenant_my_visitor():
         repo = get_visitors_repo()
         created = repo.create_tenant_visitor_request(
             data=payload,
-            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            hostel_id=hostel_id,
             tenant_profile=tenant,
+            tenant_id=tenant_id,
         )
 
         return jsonify({
@@ -1154,16 +1339,11 @@ def cancel_tenant_my_visitor(visitor_id):
     Cancel an upcoming or pending visitor request before check-in.
     """
     try:
-        tenant = g.current_tenant
-        tenant_filters = [
-            tenant.get("user_code"),
-            tenant.get("email"),
-            tenant.get("auth_user_id"),
-        ]
+        tenant_filters, hostel_id, _ = get_tenant_filters_for_request()
         repo = get_visitors_repo()
         cancelled = repo.cancel_tenant_visitor_request(
             visitor_id=visitor_id,
-            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            hostel_id=hostel_id,
             tenant_id_filters=tenant_filters,
         )
         if not cancelled:
@@ -1188,16 +1368,11 @@ def get_tenant_single_visitor(visitor_id):
     Get full digital pass details for tenant's visitor.
     """
     try:
-        tenant = g.current_tenant
-        tenant_filters = [
-            tenant.get("user_code"),
-            tenant.get("email"),
-            tenant.get("auth_user_id"),
-        ]
+        tenant_filters, hostel_id, _ = get_tenant_filters_for_request()
         repo = get_visitors_repo()
         visitor = repo.get_tenant_visitor_by_id(
             visitor_id=visitor_id,
-            hostel_id=tenant.get("hostel_id", DEMO_HOSTEL_ID),
+            hostel_id=hostel_id,
             tenant_id_filters=tenant_filters,
         )
         if not visitor:
@@ -2294,6 +2469,101 @@ def create_owner_walk_in_visitor():
 
 
 # ============================================================================
+# 5C. OWNER ANNOUNCEMENT ENDPOINTS (/api/owner/announcements)
+# ============================================================================
+
+@app.route("/api/owner/announcements", methods=["GET"])
+@owner_required
+def get_owner_announcements():
+    """List all announcements for the owner's hostel."""
+    try:
+        hostel_id = g.current_owner.get("hostel_id") or get_default_hostel_id()
+        status_filter = request.args.get("status", "ALL")
+        ann_service = get_announcement_service()
+        items = ann_service.get_announcements(hostel_id, status_filter=status_filter)
+        return jsonify({
+            "announcements": items,
+            "count": len(items)
+        }), 200
+    except Exception as e:
+        logger.error(f"Error fetching owner announcements: {e}")
+        return jsonify({"error": "Failed to fetch announcements."}), 500
+
+
+@app.route("/api/owner/announcements", methods=["POST"])
+@owner_required
+def create_owner_announcement():
+    """Create and broadcast or draft a new announcement."""
+    try:
+        hostel_id = g.current_owner.get("hostel_id") or get_default_hostel_id()
+        created_by = g.current_owner.get("id")
+        payload = request.get_json(silent=True) or {}
+        ann_service = get_announcement_service()
+        created = ann_service.create_announcement(
+            hostel_id=hostel_id,
+            data=payload,
+            created_by_profile_id=created_by
+        )
+        return jsonify({
+            "success": True,
+            "message": "Announcement created successfully.",
+            "announcement": created
+        }), 201
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        logger.error(f"Error creating announcement: {e}")
+        return jsonify({"error": f"Failed to create announcement: {str(e)}"}), 500
+
+
+@app.route("/api/owner/announcements/<announcement_id>", methods=["PATCH"])
+@owner_required
+def update_owner_announcement(announcement_id):
+    """Update announcement title, message, status, or schedule."""
+    try:
+        hostel_id = g.current_owner.get("hostel_id") or get_default_hostel_id()
+        payload = request.get_json(silent=True) or {}
+        ann_service = get_announcement_service()
+        updated = ann_service.update_announcement(
+            hostel_id=hostel_id,
+            announcement_id=announcement_id,
+            updates=payload
+        )
+        if not updated:
+            return jsonify({"error": "Announcement not found."}), 404
+        return jsonify({
+            "success": True,
+            "message": "Announcement updated successfully.",
+            "announcement": updated
+        }), 200
+    except Exception as e:
+        logger.error(f"Error updating announcement {announcement_id}: {e}")
+        return jsonify({"error": f"Failed to update announcement: {str(e)}"}), 500
+
+
+@app.route("/api/owner/announcements/<announcement_id>", methods=["DELETE"])
+@owner_required
+def delete_owner_announcement(announcement_id):
+    """Delete an announcement permanently."""
+    try:
+        hostel_id = g.current_owner.get("hostel_id") or get_default_hostel_id()
+        ann_service = get_announcement_service()
+        success = ann_service.delete_announcement(
+            hostel_id=hostel_id,
+            announcement_id=announcement_id
+        )
+        if not success:
+            return jsonify({"error": "Announcement not found or already deleted."}), 404
+        return jsonify({
+            "success": True,
+            "message": "Announcement deleted successfully."
+        }), 200
+    except Exception as e:
+        logger.error(f"Error deleting announcement {announcement_id}: {e}")
+        return jsonify({"error": f"Failed to delete announcement: {str(e)}"}), 500
+
+
+# ============================================================================
 # 6. PUBLIC ENQUIRY SUBMISSION ENDPOINT (POST /api/enquiries)
 # ============================================================================
 
@@ -2301,6 +2571,8 @@ def create_owner_walk_in_visitor():
 def create_enquiry():
     """
     Public endpoint to submit a new hostel room enquiry and save it to Supabase.
+    Strictly validates input, normalizes move_in_date to DATE or None,
+    links active hostel_id, and returns 201 only on successful DB insertion.
     """
     try:
         payload = request.get_json(silent=True)
@@ -2311,7 +2583,7 @@ def create_enquiry():
         phone = (payload.get("phone") or "").strip()
         email = (payload.get("email") or "").strip()
         preferred_room = (payload.get("preferred_room") or "").strip()
-        move_in_date = (payload.get("move_in_date") or "").strip()
+        raw_move_in = (payload.get("move_in_date") or "").strip()
         occupation = (payload.get("occupation") or "").strip()
         message = (payload.get("message") or "").strip()
 
@@ -2321,47 +2593,41 @@ def create_enquiry():
             return jsonify({"error": "Phone number is required"}), 400
 
         db = get_db_client()
+        hostel_id = get_default_hostel_id(db)
 
-        full_payload = {
+        # Parse move_in_date for PostgreSQL DATE column
+        valid_date = None
+        if raw_move_in:
+            try:
+                dt = datetime.strptime(raw_move_in[:10], "%Y-%m-%d").date()
+                valid_date = dt.isoformat()
+            except Exception:
+                if not message:
+                    message = f"Preferred Move-in: {raw_move_in}"
+                else:
+                    message = f"{message} | Preferred Move-in: {raw_move_in}"
+
+        insert_payload = {
+            "hostel_id": hostel_id,
             "name": name,
             "phone": phone,
-            "email": email,
-            "preferred_room": preferred_room,
-            "move_in_date": move_in_date,
-            "occupation": occupation,
-            "message": message,
+            "email": email or None,
+            "preferred_room": preferred_room or None,
+            "move_in_date": valid_date,
+            "occupation": occupation or None,
+            "message": message or None,
+            "status": "NEW",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
-        try:
-            res = db.table("enquiries").insert(full_payload).execute()
-            inserted_record = res.data[0] if res.data else full_payload
-            logger.info(f"Enquiry successfully inserted for: {name} (phone: {phone})")
-        except Exception as insert_err:
-            err_str = str(insert_err)
-            if "Could not find the" in err_str or "PGRST204" in err_str:
-                details = []
-                if email:
-                    details.append(f"Email: {email}")
-                if preferred_room:
-                    details.append(f"Room: {preferred_room}")
-                if move_in_date:
-                    details.append(f"Move-in: {move_in_date}")
-                if occupation:
-                    details.append(f"Occupation: {occupation}")
-                if message:
-                    details.append(f"Notes: {message}")
+        res = db.table("enquiries").insert(insert_payload).execute()
+        if not res.data or len(res.data) == 0:
+            logger.error("Enquiry insert returned empty data")
+            return jsonify({"error": "Failed to save enquiry to database"}), 500
 
-                fallback_payload = {
-                    "name": name,
-                    "phone": phone,
-                    "message": " | ".join(details) if details else message,
-                }
-                res = db.table("enquiries").insert(fallback_payload).execute()
-                inserted_record = res.data[0] if res.data else fallback_payload
-                logger.info(f"Enquiry successfully inserted (fallback) for: {name}")
-            else:
-                logger.error(f"Supabase insert failed: {err_str}")
-                return jsonify({"error": "Failed to save enquiry to database"}), 500
+        inserted_record = res.data[0]
+        logger.info(f"Enquiry successfully created with ID: {inserted_record.get('id')} for {name}")
 
         return jsonify({
             "message": "Enquiry submitted successfully",
@@ -2370,9 +2636,10 @@ def create_enquiry():
 
     except Exception as e:
         logger.error(f"Unexpected error in create_enquiry: {e}")
-        return jsonify({"error": "An unexpected server error occurred. Please try again."}), 500
+        return jsonify({"error": f"Failed to submit enquiry: {str(e)}"}), 500
 
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True, use_reloader=False)
+

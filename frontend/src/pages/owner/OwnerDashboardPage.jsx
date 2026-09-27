@@ -114,8 +114,18 @@ export default function OwnerDashboardPage() {
     total_beds: dashboardData?.summary?.total_beds || 0,
     occupied_beds: dashboardData?.summary?.occupied_beds || 0,
     available_beds: dashboardData?.summary?.available_beds || 0,
+    reserved_beds: dashboardData?.summary?.reserved_beds || 0,
+    maintenance_beds: dashboardData?.summary?.maintenance_beds || 0,
     current_tenants: dashboardData?.summary?.current_tenants || 0,
     occupancy_rate: dashboardData?.summary?.occupancy_rate || 0,
+  }
+
+  const financials = dashboardData?.financials || {
+    expected_rent: 0,
+    collected_rent: 0,
+    pending_rent: 0,
+    overdue_rent: 0,
+    monthly_expenses: 0,
   }
 
   const enquiriesKpi = dashboardData?.enquiries || {
@@ -235,7 +245,7 @@ export default function OwnerDashboardPage() {
           </div>
           <div className="kpi-card-number">{summary.total_beds}</div>
           <div className="kpi-card-footer">
-            <span className="kpi-badge-neutral">{roomStats.totalRooms} Rooms</span>
+            <span className="kpi-badge-neutral">{summary.total_rooms} Rooms</span>
             <span className="kpi-sub-text">View inventory &rarr;</span>
           </div>
         </Link>
@@ -443,22 +453,26 @@ export default function OwnerDashboardPage() {
           <div className="financial-kpi-subgrid">
             <div className="fin-card">
               <span className="fin-label">Expected Rent</span>
-              <span className="fin-value">₹4,55,000</span>
-              <span className="fin-sub">September cycle</span>
+              <span className="fin-value">₹{(financials.expected_rent || 0).toLocaleString('en-IN')}</span>
+              <span className="fin-sub">Monthly target</span>
             </div>
             <div className="fin-card">
               <span className="fin-label">Collected Rent</span>
-              <span className="fin-value" style={{ color: '#16a34a' }}>₹3,82,500</span>
-              <span className="fin-sub">84.1% realized</span>
+              <span className="fin-value" style={{ color: '#16a34a' }}>₹{(financials.collected_rent || 0).toLocaleString('en-IN')}</span>
+              <span className="fin-sub">
+                {financials.expected_rent > 0
+                  ? `${Math.round((financials.collected_rent / financials.expected_rent) * 100)}% realized`
+                  : 'Realized collections'}
+              </span>
             </div>
             <div className="fin-card">
               <span className="fin-label">Pending Rent</span>
-              <span className="fin-value" style={{ color: '#b45309' }}>₹72,500</span>
+              <span className="fin-value" style={{ color: '#b45309' }}>₹{(financials.pending_rent || 0).toLocaleString('en-IN')}</span>
               <span className="fin-sub">Due this cycle</span>
             </div>
             <div className="fin-card">
               <span className="fin-label">Overdue Rent</span>
-              <span className="fin-value" style={{ color: '#dc2626' }}>₹24,000</span>
+              <span className="fin-value" style={{ color: '#dc2626' }}>₹{(financials.overdue_rent || 0).toLocaleString('en-IN')}</span>
               <span className="fin-sub">Action required</span>
             </div>
           </div>
@@ -506,22 +520,24 @@ export default function OwnerDashboardPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
               <div style={{ backgroundColor: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
                 <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', fontWeight: 600 }}>OCCUPIED</span>
-                <strong style={{ fontSize: '1.2rem', color: '#1d4ed8' }}>{roomStats.occupiedBeds}</strong>
-                <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block' }}>Beds ({Math.round((roomStats.occupiedBeds / (roomStats.totalBeds || 1)) * 100)}%)</span>
+                <strong style={{ fontSize: '1.2rem', color: '#1d4ed8' }}>{summary.occupied_beds}</strong>
+                <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block' }}>
+                  Beds ({summary.total_beds > 0 ? Math.round((summary.occupied_beds / summary.total_beds) * 100) : 0}%)
+                </span>
               </div>
               <div style={{ backgroundColor: '#f0fdf4', padding: '10px', borderRadius: '8px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
                 <span style={{ fontSize: '0.75rem', color: '#166534', display: 'block', fontWeight: 600 }}>AVAILABLE</span>
-                <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{roomStats.availableBeds}</strong>
+                <strong style={{ fontSize: '1.2rem', color: '#15803d' }}>{summary.available_beds}</strong>
                 <span style={{ fontSize: '0.7rem', color: '#166534', display: 'block' }}>Ready to assign</span>
               </div>
               <div style={{ backgroundColor: '#f5f3ff', padding: '10px', borderRadius: '8px', border: '1px solid #ddd6fe', textAlign: 'center' }}>
                 <span style={{ fontSize: '0.75rem', color: '#6d28d9', display: 'block', fontWeight: 600 }}>RESERVED</span>
-                <strong style={{ fontSize: '1.2rem', color: '#7c3aed' }}>{roomStats.reservedBeds}</strong>
+                <strong style={{ fontSize: '1.2rem', color: '#7c3aed' }}>{summary.reserved_beds}</strong>
                 <span style={{ fontSize: '0.7rem', color: '#6d28d9', display: 'block' }}>Move-ins queued</span>
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8125rem', color: '#475569', paddingTop: '4px' }}>
-              <span>Total Inventory: <strong>12 Rooms • 23 Beds</strong></span>
+              <span>Total Inventory: <strong>{summary.total_rooms} Rooms • {summary.total_beds} Beds</strong></span>
               <Link to="/owner/rooms" style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
                 View Floor Plans &rarr;
               </Link>

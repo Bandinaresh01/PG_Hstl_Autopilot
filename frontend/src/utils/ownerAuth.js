@@ -22,15 +22,17 @@ const TOKEN_STORAGE_KEY = 'urbannest_owner_access_token'
 
 export function getStoredAccessToken() {
   if (typeof window === 'undefined') return ''
-  return sessionStorage.getItem(TOKEN_STORAGE_KEY) || ''
+  return sessionStorage.getItem(TOKEN_STORAGE_KEY) || localStorage.getItem(TOKEN_STORAGE_KEY) || ''
 }
 
 export function setStoredAccessToken(token) {
   if (typeof window === 'undefined') return
   if (token) {
     sessionStorage.setItem(TOKEN_STORAGE_KEY, token)
+    localStorage.setItem(TOKEN_STORAGE_KEY, token)
   } else {
     sessionStorage.removeItem(TOKEN_STORAGE_KEY)
+    localStorage.removeItem(TOKEN_STORAGE_KEY)
   }
 }
 

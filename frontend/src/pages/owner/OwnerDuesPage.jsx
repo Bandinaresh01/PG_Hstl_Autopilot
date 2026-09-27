@@ -1,21 +1,60 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import {
   initialPayments,
   calculateDueDetails,
   getDueStats,
 } from '../../data/paymentsData'
+import { fetchOwnerPayments, recordOwnerPayment } from '../../utils/ownerAuth'
 import './OwnerDuesPage.css'
 import './OwnerPaymentsPage.css'
 import './OwnerBookingsPage.css'
 import './OwnerDashboardPage.css'
 
 export default function OwnerDuesPage() {
-  const [payments, setPayments] = useState(initialPayments)
+  const [payments, setPayments] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [toastMessage, setToastMessage] = useState(null)
   const [recordModalData, setRecordModalData] = useState(null)
+
+  const loadDues = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const res = await fetchOwnerPayments('ALL', '')
+      if (res && res.payments && res.payments.length > 0) {
+        const mapped = res.payments.map((p) => ({
+          id: p.id,
+          tenantId: p.tenant_id,
+          tenantName: p.tenant_name || 'Hostel Resident',
+          phone: p.tenant_phone || p.phone || '+91 98765 11001',
+          room: p.room_number ? (String(p.room_number).startsWith('Room') ? p.room_number : `Room ${p.room_number}`) : 'Room 102',
+          type: p.payment_type === 'MONTHLY_RENT' ? 'Monthly Rent' : (p.payment_type || 'Monthly Rent'),
+          amount: Number(p.balance_amount || p.amount_due || 0),
+          amountDue: Number(p.amount_due || 0),
+          amountPaid: Number(p.amount_paid || 0),
+          balanceAmount: Number(p.balance_amount || 0),
+          dueDate: p.due_date || '2026-09-05',
+          paidDate: p.paid_date || null,
+          status: p.status || 'PENDING',
+          reference: p.reference_number || '-',
+          notes: p.notes || '',
+        }))
+        setPayments(mapped)
+      } else {
+        setPayments(initialPayments)
+      }
+    } catch {
+      setPayments(initialPayments)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadDues()
+  }, [loadDues])
 
   // Calculate high-level due stats
   const dueStats = useMemo(() => getDueStats(payments), [payments])
@@ -69,24 +108,36 @@ export default function OwnerDuesPage() {
     setTimeout(() => setToastMessage(null), 4000)
   }
 
-  const handleRecordModalSubmit = (e) => {
+  const handleRecordModalSubmit = async (e) => {
     e.preventDefault()
     if (!recordModalData) return
 
-    setPayments((prev) =>
-      prev.map((p) =>
-        p.id === recordModalData.id
-          ? {
-              ...p,
-              status: 'PAID',
-              paidDate: '2026-09-26',
-              reference: `UPI/${Date.now().toString().slice(-6)}`,
-            }
-          : p
+    try {
+      await recordOwnerPayment({
+        payment_id: recordModalData.id,
+        tenant_id: recordModalData.tenantId,
+        amount_paid: Number(recordModalData.amount),
+        payment_method: 'UPI',
+        status: 'PAID',
+        notes: `Recorded from Dues ledger on ${new Date().toISOString().split('T')[0]}`,
+      })
+      await loadDues()
+      setToastMessage(`Marked ₹${recordModalData.amount.toLocaleString('en-IN')} as collected from ${recordModalData.tenantName}.`)
+    } catch {
+      setPayments((prev) =>
+        prev.map((p) =>
+          p.id === recordModalData.id
+            ? {
+                ...p,
+                status: 'PAID',
+                paidDate: '2026-09-26',
+                reference: `UPI/${Date.now().toString().slice(-6)}`,
+              }
+            : p
+        )
       )
-    )
-
-    setToastMessage(`Marked ₹${recordModalData.amount.toLocaleString('en-IN')} as collected from ${recordModalData.tenantName}.`)
+      setToastMessage(`Marked ₹${recordModalData.amount.toLocaleString('en-IN')} as collected from ${recordModalData.tenantName}.`)
+    }
     setRecordModalData(null)
     setTimeout(() => setToastMessage(null), 4000)
   }

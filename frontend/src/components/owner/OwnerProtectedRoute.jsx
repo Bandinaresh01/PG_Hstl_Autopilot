@@ -11,25 +11,43 @@ export default function OwnerProtectedRoute() {
   const navigate = useNavigate()
 
   const checkSession = async () => {
-    const res = await fetchCurrentOwner()
-    setAuthState({
-      loading: false,
-      authenticated: res.authenticated,
-      user: res.user,
-    })
+    try {
+      const res = await fetchCurrentOwner()
+      setAuthState({
+        loading: false,
+        authenticated: res.authenticated,
+        user: res.user,
+      })
+    } catch {
+      setAuthState({
+        loading: false,
+        authenticated: false,
+        user: null,
+      })
+    }
   }
 
   useEffect(() => {
     let active = true
-    fetchCurrentOwner().then((res) => {
-      if (active) {
-        setAuthState({
-          loading: false,
-          authenticated: res.authenticated,
-          user: res.user,
-        })
-      }
-    })
+    fetchCurrentOwner()
+      .then((res) => {
+        if (active) {
+          setAuthState({
+            loading: false,
+            authenticated: res.authenticated,
+            user: res.user,
+          })
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setAuthState({
+            loading: false,
+            authenticated: false,
+            user: null,
+          })
+        }
+      })
     return () => {
       active = false
     }

@@ -5,6 +5,8 @@
   "description": "Hostel CRM root runner",
   "scripts": {
     "dev": "npm --prefix frontend run dev",
+    "backend": "python backend/app.py",
+    "backend:win": ".\\backend\\.venv\\Scripts\\python.exe backend/app.py",
     "build": "npm --prefix frontend run build",
     "frontend": "npm --prefix frontend run dev",
     "start": "npm --prefix frontend run dev"

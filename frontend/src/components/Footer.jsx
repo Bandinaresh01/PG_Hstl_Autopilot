@@ -65,8 +65,13 @@ export default function Footer() {
               </Link>
             </li>
             <li>
+              <Link to="/tenant/login" className="footer-link" style={{ color: '#93c5fd', fontWeight: 600 }}>
+                Tenant Resident Portal →
+              </Link>
+            </li>
+            <li>
               <Link to="/owner/login" className="footer-link" style={{ opacity: 0.85 }}>
-                Owner Portal →
+                Owner Operations CRM →
               </Link>
             </li>
           </ul>

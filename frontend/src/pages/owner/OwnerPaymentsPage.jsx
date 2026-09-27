@@ -1,11 +1,9 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
-  initialPayments,
   demoMonthlyTrends,
 } from '../../data/paymentsData'
-import { initialTenants } from '../../data/tenantsData'
-import { fetchOwnerPayments, recordOwnerPayment } from '../../utils/ownerAuth'
+import { fetchOwnerPayments, fetchOwnerTenants, recordOwnerPayment } from '../../utils/ownerAuth'
 import './OwnerPaymentsPage.css'
 import './OwnerBookingsPage.css'
 import './OwnerDashboardPage.css'
@@ -14,7 +12,8 @@ export default function OwnerPaymentsPage() {
   const [searchParams] = useSearchParams()
   const initialFilterParam = searchParams.get('status')?.toUpperCase() || 'ALL'
 
-  const [payments, setPayments] = useState(initialPayments)
+  const [payments, setPayments] = useState([])
+  const [tenants, setTenants] = useState([])
   const [activeFilter, setActiveFilter] = useState(
     ['PAID', 'PENDING', 'DUE_SOON', 'OVERDUE', 'PARTIAL'].includes(initialFilterParam)
       ? initialFilterParam
@@ -28,9 +27,9 @@ export default function OwnerPaymentsPage() {
   // Record Payment Form State
   const [recordForm, setRecordForm] = useState({
     paymentId: '',
-    tenantId: 'TEN-101',
-    tenantName: 'Rahul Kumar',
-    room: 'Room 204 (Bed A)',
+    tenantId: '',
+    tenantName: '',
+    room: '',
     type: 'Monthly Rent',
     amountDue: 8500,
     amountPaid: 8500,
@@ -43,12 +42,19 @@ export default function OwnerPaymentsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [recordError, setRecordError] = useState('')
 
-  // Load authoritative payments from backend
+  // Load authoritative payments and tenants from backend
   const loadPayments = useCallback(async () => {
     try {
-      const res = await fetchOwnerPayments(activeFilter, searchQuery)
-      if (res && res.payments && res.payments.length > 0) {
+      const [res, tenantsRes] = await Promise.all([
+        fetchOwnerPayments(activeFilter, searchQuery),
+        fetchOwnerTenants()
+      ])
+      if (res && res.payments) {
         setPayments(res.payments)
+      }
+      if (tenantsRes) {
+        const tList = tenantsRes.tenants || (Array.isArray(tenantsRes) ? tenantsRes : [])
+        setTenants(tList)
       }
     } catch (err) {
       console.warn('Backend payment fetch notice:', err.message)
@@ -67,30 +73,30 @@ export default function OwnerPaymentsPage() {
       const bal = Number(existing.balance_amount ?? Math.max(0, amtDue - amtPaid))
       setRecordForm({
         paymentId: existing.id || '',
-        tenantId: existing.tenant_id || existing.tenantId || 'TEN-101',
-        tenantName: existing.tenant_name || existing.tenantName || 'Rahul Kumar',
-        room: existing.room_number || existing.room || 'Room 204 (Bed A)',
+        tenantId: existing.tenant_id || existing.tenantId || '',
+        tenantName: existing.tenant_name || existing.tenantName || '',
+        room: existing.room_number || existing.room || 'General',
         type: existing.payment_type || existing.type || 'Monthly Rent',
         amountDue: amtDue,
-        amountPaid: bal > 0 ? bal : amtDue, // Default to remaining balance or full amount
-        dueDate: existing.due_date || existing.dueDate || '2026-09-24',
-        paidDate: '2026-09-26',
+        amountPaid: bal > 0 ? bal : amtDue,
+        dueDate: existing.due_date || existing.dueDate || new Date().toISOString().slice(0, 10),
+        paidDate: new Date().toISOString().slice(0, 10),
         paymentMethod: 'UPI',
         reference: '',
         notes: existing.notes || '',
       })
     } else {
-      const defaultTenant = initialTenants[0] || {}
+      const defaultTenant = tenants[0] || {}
       setRecordForm({
         paymentId: '',
-        tenantId: defaultTenant.id || 'TEN-101',
-        tenantName: defaultTenant.name || 'Rahul Kumar',
-        room: `${defaultTenant.roomNumber || 'Room 204'} (${defaultTenant.bedCode || 'Bed A'})`,
+        tenantId: defaultTenant.id || defaultTenant.tenant_code || '',
+        tenantName: defaultTenant.full_name || defaultTenant.name || '',
+        room: defaultTenant.room_number ? `${defaultTenant.room_number} (${defaultTenant.bed_code || 'Bed'})` : 'General',
         type: 'Monthly Rent',
-        amountDue: defaultTenant.monthlyRent || 8500,
-        amountPaid: defaultTenant.monthlyRent || 8500,
-        dueDate: defaultTenant.nextDueDate || '2026-09-24',
-        paidDate: '2026-09-26',
+        amountDue: Number(defaultTenant.monthly_rent || defaultTenant.monthlyRent || 8500),
+        amountPaid: Number(defaultTenant.monthly_rent || defaultTenant.monthlyRent || 8500),
+        dueDate: defaultTenant.next_due_date || new Date().toISOString().slice(0, 10),
+        paidDate: new Date().toISOString().slice(0, 10),
         paymentMethod: 'UPI',
         reference: '',
         notes: '',
@@ -102,24 +108,25 @@ export default function OwnerPaymentsPage() {
 
   // Handle selecting a tenant from dropdown
   const handleTenantSelect = (selectedTid) => {
-    const t = initialTenants.find((item) => item.id === selectedTid)
+    const t = tenants.find((item) => (item.id === selectedTid || item.tenant_code === selectedTid))
     if (t) {
+      const tName = t.full_name || t.name || ''
       const existingPending = payments.find(
         (p) =>
           ((p.tenant_id === t.id || p.tenantId === t.id) ||
-            ((p.tenant_name || p.tenantName || '').toLowerCase() === t.name.toLowerCase())) &&
+            ((p.tenant_name || p.tenantName || '').toLowerCase() === tName.toLowerCase())) &&
           p.status !== 'PAID'
       )
 
       setRecordForm((prev) => ({
         ...prev,
         paymentId: existingPending ? existingPending.id : '',
-        tenantId: t.id,
-        tenantName: t.name,
-        room: `${t.roomNumber} (${t.bedCode})`,
-        amountDue: existingPending ? Number(existingPending.amount_due ?? existingPending.amount) : t.monthlyRent,
-        amountPaid: existingPending ? Number(existingPending.balance_amount ?? existingPending.amount_due ?? t.monthlyRent) : t.monthlyRent,
-        dueDate: existingPending ? (existingPending.due_date ?? existingPending.dueDate) : t.nextDueDate,
+        tenantId: t.id || t.tenant_code,
+        tenantName: tName,
+        room: t.room_number ? `${t.room_number} (${t.bed_code || 'Bed'})` : 'General',
+        amountDue: existingPending ? Number(existingPending.amount_due ?? existingPending.amount) : Number(t.monthly_rent || t.monthlyRent || 8500),
+        amountPaid: existingPending ? Number(existingPending.balance_amount ?? existingPending.amount_due ?? (t.monthly_rent || 8500)) : Number(t.monthly_rent || t.monthlyRent || 8500),
+        dueDate: existingPending ? (existingPending.due_date ?? existingPending.dueDate) : (t.next_due_date || new Date().toISOString().slice(0, 10)),
       }))
     }
   }
@@ -236,6 +243,26 @@ export default function OwnerPaymentsPage() {
   const paidPercent = summary.totalExpected > 0 ? ((summary.totalCollected / summary.totalExpected) * 100).toFixed(1) : 0
   const pendingPercent = summary.totalExpected > 0 ? ((summary.totalPending / summary.totalExpected) * 100).toFixed(1) : 0
   const overduePercent = summary.totalExpected > 0 ? ((summary.totalOverdue / summary.totalExpected) * 100).toFixed(1) : 0
+
+  const monthlyTrends = useMemo(() => {
+    if (!payments || payments.length === 0) return demoMonthlyTrends
+    const monthMap = {}
+    payments.forEach((p) => {
+      const d = p.due_date || p.dueDate
+      if (!d) return
+      const m = new Date(d).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      if (!monthMap[m]) {
+        monthMap[m] = { month: m, expected: 0, collected: 0 }
+      }
+      monthMap[m].expected += Number(p.amount_due || p.amountDue || p.amount || 0)
+      monthMap[m].collected += Number(p.amount_paid || p.amountPaid || 0)
+    })
+    const list = Object.values(monthMap).map((item) => ({
+      ...item,
+      rate: item.expected > 0 ? Math.round((item.collected / item.expected) * 100) : 0,
+    }))
+    return list.length > 0 ? list : demoMonthlyTrends
+  }, [payments])
 
   return (
     <div className="owner-payments-view">
@@ -360,7 +387,7 @@ export default function OwnerPaymentsPage() {
           </div>
 
           <div className="monthly-bars-container">
-            {demoMonthlyTrends.map((trend) => (
+            {monthlyTrends.map((trend) => (
               <div key={trend.month} className="bar-month-row">
                 <div className="bar-meta-row">
                   <span className="bar-month-name">{trend.month}</span>
@@ -731,9 +758,9 @@ export default function OwnerPaymentsPage() {
                       value={recordForm.tenantId}
                       onChange={(e) => handleTenantSelect(e.target.value)}
                     >
-                      {initialTenants.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name} ({t.id} • {t.roomNumber})
+                      {tenants.map((t) => (
+                        <option key={t.id || t.tenant_code} value={t.id || t.tenant_code}>
+                          {t.full_name || t.name} ({t.tenant_code || t.id} • {t.room_number || t.roomNumber || 'Room'})
                         </option>
                       ))}
                     </select>

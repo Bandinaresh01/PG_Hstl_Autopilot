@@ -4,8 +4,8 @@ import { loginTenant } from '../../utils/tenantAuth'
 import './TenantLoginPage.css'
 
 export default function TenantLoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState(() => localStorage.getItem('urbannest_tenant_email') || 'tenant@urbannest.in')
+  const [password, setPassword] = useState('Tenant@2026')
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -14,6 +14,12 @@ export default function TenantLoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const from = location.state?.from?.pathname || '/tenant/dashboard'
+
+  const fillDemoTenant = () => {
+    setEmail('tenant@urbannest.in')
+    setPassword('Tenant@2026')
+    setErrorMessage('')
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -184,15 +190,59 @@ export default function TenantLoginPage() {
           </button>
         </form>
 
-        {/* Demo Helper Callout */}
-        <div className="tenant-demo-callout">
-          <span className="tenant-demo-title">
-            <span>💡</span>
-            <span>Tenant Account Access</span>
+        {/* Demo Helper Callout with Auto-fill */}
+        <div className="tenant-demo-callout" style={{ marginTop: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span className="tenant-demo-title" style={{ margin: 0 }}>
+              <span>💡</span>
+              <span>Demo Resident Access</span>
+            </span>
+            <button
+              type="button"
+              onClick={fillDemoTenant}
+              style={{
+                backgroundColor: '#2563eb',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '4px 10px',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Auto-fill Demo Tenant
+            </button>
+          </div>
+          <div style={{ fontSize: '0.8rem', color: '#475569', display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '4px' }}>
+            <span>Email: <code>tenant@urbannest.in</code></span>
+            <span>Password: <code>Tenant@2026</code></span>
+          </div>
+          <span style={{ fontSize: '0.725rem', color: '#64748b', display: 'block' }}>
+            Resident: Rahul Kumar (Room 101, Bed A)
           </span>
-          <span>
-            Hostel residents receive account credentials from the hostel owner upon room &amp; bed assignment.
-          </span>
+        </div>
+
+        {/* New Tenant Signup / Admission Notice */}
+        <div
+          style={{
+            marginTop: '12px',
+            padding: '12px 14px',
+            borderRadius: '8px',
+            backgroundColor: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            fontSize: '0.825rem',
+            color: '#475569',
+            textAlign: 'center',
+          }}
+        >
+          <span>Looking to join UrbanNest? </span>
+          <Link to="/enquiry" style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
+            Submit an Admission Enquiry &rarr;
+          </Link>
+          <div style={{ marginTop: '4px', fontSize: '0.725rem', color: '#64748b' }}>
+            New resident login accounts are created by hostel management upon bed allotment.
+          </div>
         </div>
 
         {/* Footer Navigation */}

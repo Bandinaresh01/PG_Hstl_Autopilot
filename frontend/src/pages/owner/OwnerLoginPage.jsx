@@ -4,8 +4,8 @@ import { loginOwner, fetchCurrentOwner } from '../../utils/ownerAuth'
 import './OwnerLoginPage.css'
 
 export default function OwnerLoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState(() => localStorage.getItem('urbannest_owner_email') || 'owner@urbannest.in')
+  const [password, setPassword] = useState('UrbanNest@2026')
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
@@ -18,15 +18,21 @@ export default function OwnerLoginPage() {
   // If already authenticated as OWNER, redirect directly to dashboard
   useEffect(() => {
     let mounted = true
-    fetchCurrentOwner().then((res) => {
-      if (mounted) {
-        if (res.authenticated && res.user && res.user.role === 'OWNER') {
-          navigate('/owner/dashboard', { replace: true })
-        } else {
+    fetchCurrentOwner()
+      .then((res) => {
+        if (mounted) {
+          if (res.authenticated && res.user && res.user.role === 'OWNER') {
+            navigate('/owner/dashboard', { replace: true })
+          } else {
+            setIsCheckingInitial(false)
+          }
+        }
+      })
+      .catch(() => {
+        if (mounted) {
           setIsCheckingInitial(false)
         }
-      }
-    })
+      })
     return () => {
       mounted = false
     }
@@ -46,6 +52,11 @@ export default function OwnerLoginPage() {
     try {
       const result = await loginOwner(email, password)
       if (result && result.authenticated) {
+        if (rememberMe) {
+          localStorage.setItem('urbannest_owner_email', email.trim())
+        } else {
+          localStorage.removeItem('urbannest_owner_email')
+        }
         navigate('/owner/dashboard')
       }
     } catch (err) {

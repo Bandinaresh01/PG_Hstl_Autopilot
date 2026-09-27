@@ -1,214 +1,92 @@
 """
-Tenant Domain Service & Data Access Layer
-Provides persistent resident management, room/bed assignment consistency,
-stay tracking, and tenant portal profile synchronization for UrbanNest Hostel CRM.
+Tenant Domain Service & Supabase Data Access Layer
+Provides persistent, relational tenant lifecycle management,
+room/bed assignments, and tenancy metrics for UrbanNest Hostel CRM.
 """
 
-import json
 import logging
-import os
-import threading
 import uuid
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
 
 from room_service import get_room_service
 
 logger = logging.getLogger("tenant_service")
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
-TENANTS_FILE = os.path.join(DATA_DIR, "tenants.json")
-_lock = threading.Lock()
-
-DEMO_HOSTEL_ID = "11111111-1111-1111-1111-111111111111"
-
-DEFAULT_TENANTS = [
-    {
-        "id": "TEN-101",
-        "hostel_id": DEMO_HOSTEL_ID,
-        "profile_id": None,
-        "tenant_code": "TEN-101",
-        "full_name": "Rahul Sharma",
-        "phone": "+91 98765 43210",
-        "email": "rahul.sharma@example.com",
-        "occupation": "Software Engineer (Infosys)",
-        "room_id": "RM-204",
-        "room_number": "204",
-        "bed_id": "BED-204A",
-        "bed_code": "Bed A",
-        "move_in_date": "2026-09-01",
-        "expected_end_date": "2027-03-01",
-        "monthly_rent": 8500.0,
-        "security_deposit": 8500.0,
-        "status": "ACTIVE",
-        "emergency_contact_name": "Ramesh Sharma",
-        "emergency_contact_relationship": "Father",
-        "emergency_contact_phone": "+91 98765 00000",
-        "rules_accepted_at": "2026-09-01T10:00:00+00:00",
-        "created_at": "2026-09-01T00:00:00+00:00",
-        "updated_at": "2026-09-01T00:00:00+00:00"
-    },
-    {
-        "id": "TEN-102",
-        "hostel_id": DEMO_HOSTEL_ID,
-        "profile_id": None,
-        "tenant_code": "TEN-102",
-        "full_name": "Priya Patel",
-        "phone": "+91 98123 45678",
-        "email": "priya.patel@example.com",
-        "occupation": "Product Analyst (Google)",
-        "room_id": "RM-201",
-        "room_number": "201",
-        "bed_id": "BED-201A",
-        "bed_code": "Bed A",
-        "move_in_date": "2026-08-15",
-        "expected_end_date": "2027-02-15",
-        "monthly_rent": 14000.0,
-        "security_deposit": 14000.0,
-        "status": "ACTIVE",
-        "emergency_contact_name": "Suresh Patel",
-        "emergency_contact_relationship": "Father",
-        "emergency_contact_phone": "+91 98123 00000",
-        "rules_accepted_at": "2026-08-15T12:00:00+00:00",
-        "created_at": "2026-08-15T00:00:00+00:00",
-        "updated_at": "2026-08-15T00:00:00+00:00"
-    },
-    {
-        "id": "TEN-103",
-        "hostel_id": DEMO_HOSTEL_ID,
-        "profile_id": None,
-        "tenant_code": "TEN-103",
-        "full_name": "Arjun Mehta",
-        "phone": "+91 97654 32109",
-        "email": "arjun.mehta@example.com",
-        "occupation": "Consultant (Deloitte)",
-        "room_id": "RM-101",
-        "room_number": "101",
-        "bed_id": "BED-101A",
-        "bed_code": "Bed A",
-        "move_in_date": "2026-09-01",
-        "expected_end_date": "2027-02-28",
-        "monthly_rent": 6500.0,
-        "security_deposit": 6500.0,
-        "status": "ACTIVE",
-        "emergency_contact_name": "Kavita Mehta",
-        "emergency_contact_relationship": "Mother",
-        "emergency_contact_phone": "+91 97654 00000",
-        "rules_accepted_at": "2026-09-01T14:00:00+00:00",
-        "created_at": "2026-09-01T00:00:00+00:00",
-        "updated_at": "2026-09-01T00:00:00+00:00"
-    },
-    {
-        "id": "TEN-110",
-        "hostel_id": DEMO_HOSTEL_ID,
-        "profile_id": None,
-        "tenant_code": "TEN-110",
-        "full_name": "Suresh Babu",
-        "phone": "+91 96543 21098",
-        "email": "suresh.babu@example.com",
-        "occupation": "Data Engineer (Amazon)",
-        "room_id": "RM-102",
-        "room_number": "102",
-        "bed_id": "BED-102B",
-        "bed_code": "Bed B",
-        "move_in_date": "2026-08-15",
-        "expected_end_date": "2026-10-15",
-        "monthly_rent": 8500.0,
-        "security_deposit": 8500.0,
-        "status": "ACTIVE",
-        "emergency_contact_name": "Venkat Babu",
-        "emergency_contact_relationship": "Brother",
-        "emergency_contact_phone": "+91 96543 00000",
-        "rules_accepted_at": "2026-08-15T09:00:00+00:00",
-        "created_at": "2026-08-15T00:00:00+00:00",
-        "updated_at": "2026-08-15T00:00:00+00:00"
-    }
-]
-
 
 class TenantService:
     def __init__(self, db_client=None):
         self.db = db_client
-        os.makedirs(DATA_DIR, exist_ok=True)
-        self._init_storage()
-
-    def _init_storage(self):
-        with _lock:
-            if not os.path.exists(TENANTS_FILE):
-                with open(TENANTS_FILE, "w", encoding="utf-8") as f:
-                    json.dump(DEFAULT_TENANTS, f, indent=2)
-
-    def _read_local(self) -> list:
-        try:
-            with open(TENANTS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return DEFAULT_TENANTS.copy()
-
-    def _write_local(self, data: list):
-        with open(TENANTS_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
 
     def get_tenants(self, hostel_id: str, status: str = None, search: str = None) -> list:
-        tenants = []
-        if self.db:
-            try:
-                query = self.db.table("tenants").select("*").eq("hostel_id", hostel_id)
-                if status and status.upper() != "ALL":
-                    query = query.eq("status", status.upper())
-                res = query.order("created_at", desc=True).execute()
-                tenants = res.data or []
-            except Exception as e:
-                if "PGRST205" not in str(e):
-                    logger.warning(f"Supabase tenants fetch error: {e}")
+        """
+        Retrieve all tenants for a given hostel, enriched with room and bed details.
+        Directly queries Supabase PostgreSQL public.tenants.
+        """
+        if not self.db:
+            return []
 
-        if not tenants:
-            all_t = self._read_local()
-            tenants = [t for t in all_t if t.get("hostel_id") == hostel_id]
+        try:
+            query = self.db.table("tenants").select("*").eq("hostel_id", hostel_id)
             if status and status.upper() != "ALL":
-                tenants = [t for t in tenants if t.get("status") == status.upper()]
+                query = query.eq("status", status.upper())
 
-        # Filter by search string if provided
-        if search:
-            q = search.lower().strip()
-            tenants = [
-                t for t in tenants
-                if q in str(t.get("full_name", "")).lower()
-                or q in str(t.get("tenant_code", "")).lower()
-                or q in str(t.get("phone", "")).lower()
-                or q in str(t.get("email", "")).lower()
-                or q in str(t.get("room_number", "")).lower()
-            ]
+            res = query.order("created_at", desc=True).execute()
+            tenants = res.data or []
 
-        # Enrich tenants with current room and bed labels if missing
-        room_service = get_room_service(self.db)
-        rooms_list = room_service.get_rooms(hostel_id)
-        room_map = {r.get("id"): r for r in rooms_list}
-        bed_map = {}
-        for r in rooms_list:
-            for b in r.get("beds", []):
-                bed_map[b.get("id")] = (r, b)
+            # Filter by search query if provided
+            if search:
+                q = search.lower().strip()
+                tenants = [
+                    t for t in tenants
+                    if q in str(t.get("full_name", "")).lower()
+                    or q in str(t.get("tenant_code", "")).lower()
+                    or q in str(t.get("phone", "")).lower()
+                    or q in str(t.get("email", "")).lower()
+                ]
 
-        enriched = []
-        for t in tenants:
-            t_copy = dict(t)
-            r_id = t_copy.get("room_id")
-            b_id = t_copy.get("bed_id")
+            # Enrich tenants with current room and bed labels
+            room_service = get_room_service(self.db)
+            rooms_list = room_service.get_rooms(hostel_id)
+            room_map = {str(r.get("id")): r for r in rooms_list}
+            bed_map = {}
+            for r in rooms_list:
+                for b in r.get("beds", []):
+                    bed_map[str(b.get("id"))] = (r, b)
 
-            if b_id in bed_map:
-                r_obj, b_obj = bed_map[b_id]
-                t_copy["room_number"] = r_obj.get("room_number")
-                t_copy["bed_code"] = b_obj.get("bed_code")
-                t_copy["room_type"] = r_obj.get("room_type")
-            elif r_id in room_map:
-                r_obj = room_map[r_id]
-                t_copy["room_number"] = r_obj.get("room_number")
-                t_copy["room_type"] = r_obj.get("room_type")
+            enriched = []
+            for t in tenants:
+                t_copy = dict(t)
+                r_id = str(t_copy.get("room_id")) if t_copy.get("room_id") else None
+                b_id = str(t_copy.get("bed_id")) if t_copy.get("bed_id") else None
 
-            enriched.append(t_copy)
+                if b_id and b_id in bed_map:
+                    r_obj, b_obj = bed_map[b_id]
+                    t_copy["room_number"] = r_obj.get("room_number")
+                    t_copy["bed_code"] = b_obj.get("bed_code")
+                    t_copy["room_type"] = r_obj.get("room_type")
+                elif r_id and r_id in room_map:
+                    r_obj = room_map[r_id]
+                    t_copy["room_number"] = r_obj.get("room_number")
+                    t_copy["room_type"] = r_obj.get("room_type")
+                else:
+                    t_copy["room_number"] = t_copy.get("room_number") or "-"
+                    t_copy["bed_code"] = t_copy.get("bed_code") or "-"
 
-        return enriched
+                enriched.append(t_copy)
+
+            return enriched
+
+        except Exception as e:
+            logger.error(f"Error fetching tenants from Supabase: {e}")
+            return []
 
     def get_tenant_by_id(self, tenant_id: str, hostel_id: str) -> dict:
+        """
+        Retrieve a tenant by UUID, tenant_code, or profile_id.
+        """
+        if not self.db:
+            return None
+
         tenants = self.get_tenants(hostel_id)
         for t in tenants:
             if (
@@ -221,9 +99,12 @@ class TenantService:
 
     def create_tenant(self, hostel_id: str, data: dict) -> dict:
         """
-        Create a new tenant record with optional immediate room/bed assignment.
+        Create a new tenant record with optional room/bed assignment.
         Enforces bed occupancy transactional consistency.
         """
+        if not self.db:
+            raise RuntimeError("Database client not available")
+
         full_name = (data.get("full_name") or data.get("name") or "").strip()
         if not full_name:
             raise ValueError("Tenant full name is required.")
@@ -234,73 +115,64 @@ class TenantService:
         monthly_rent = float(data.get("monthly_rent") or 8500.0)
         security_deposit = float(data.get("security_deposit") or monthly_rent)
         move_in_date = data.get("move_in_date") or date.today().isoformat()
-        expected_end_date = data.get("expected_end_date") or "2027-03-31"
+        expected_end_date = data.get("expected_end_date") or (date.today() + timedelta(days=180)).isoformat()
 
         room_id = data.get("room_id")
         bed_id = data.get("bed_id")
-        room_number = data.get("room_number")
-        bed_code = data.get("bed_code")
 
-        now_iso = datetime.now(timezone.utc).isoformat()
-        code_suffix = uuid.uuid4().hex[:4].upper()
-        tenant_code = f"TEN-{code_suffix}"
-        tenant_id = tenant_code
-
-        # If bed assigned, verify and mark bed OCCUPIED
+        # Resolve room_id if room_number passed
         room_service = get_room_service(self.db)
+        if not room_id and data.get("room_number"):
+            found_room = room_service.get_room_by_id(data.get("room_number"), hostel_id)
+            if found_room:
+                room_id = found_room["id"]
+
+        # Generate unique human-readable tenant code
+        code_suffix = uuid.uuid4().hex[:4].upper()
+        tenant_code = data.get("tenant_code") or f"TEN-{code_suffix}"
+
+        # If bed assigned, mark bed as OCCUPIED
         if bed_id:
             room_service.update_bed_status(hostel_id, bed_id, "OCCUPIED")
 
-        new_tenant = {
-            "id": tenant_id,
+        tenant_payload = {
             "hostel_id": hostel_id,
-            "profile_id": data.get("profile_id"),
+            "profile_id": data.get("profile_id") or None,
             "tenant_code": tenant_code,
             "full_name": full_name,
-            "phone": phone,
-            "email": email,
+            "phone": phone or None,
+            "email": email or None,
             "occupation": occupation,
-            "room_id": room_id,
-            "room_number": room_number,
-            "bed_id": bed_id,
-            "bed_code": bed_code,
+            "room_id": room_id or None,
+            "bed_id": bed_id or None,
             "move_in_date": move_in_date,
             "expected_end_date": expected_end_date,
             "monthly_rent": monthly_rent,
             "security_deposit": security_deposit,
-            "status": data.get("status", "ACTIVE"),
-            "emergency_contact_name": data.get("emergency_contact_name", ""),
-            "emergency_contact_relationship": data.get("emergency_contact_relationship", ""),
-            "emergency_contact_phone": data.get("emergency_contact_phone", ""),
-            "rules_accepted_at": data.get("rules_accepted_at", now_iso),
-            "created_at": now_iso,
-            "updated_at": now_iso
+            "status": str(data.get("status", "ACTIVE")).upper(),
+            "emergency_contact_name": data.get("emergency_contact_name") or None,
+            "emergency_contact_relationship": data.get("emergency_contact_relationship") or None,
+            "emergency_contact_phone": data.get("emergency_contact_phone") or None,
         }
 
-        with _lock:
-            tenants = self._read_local()
-            tenants.append(new_tenant)
-            self._write_local(tenants)
+        res = self.db.table("tenants").insert(tenant_payload).execute()
+        if not res.data or len(res.data) == 0:
+            raise RuntimeError(f"Failed to create tenant {full_name}")
 
-        if self.db:
-            try:
-                # Prepare payload omitting non-column fields if needed
-                db_payload = {k: v for k, v in new_tenant.items() if k not in ["room_number", "bed_code"]}
-                self.db.table("tenants").insert(db_payload).execute()
-            except Exception as e:
-                logger.warning(f"Supabase tenant creation sync warning: {e}")
-
-        logger.info(f"Created tenant {tenant_code} ({full_name})")
-        return new_tenant
+        created_tenant = res.data[0]
+        logger.info(f"Successfully created tenant {tenant_code} ({full_name}) in Supabase")
+        return created_tenant
 
     def assign_bed(self, hostel_id: str, tenant_id: str, room_id: str, bed_id: str) -> dict:
         """
         Assign a room and bed to a tenant.
-        Transactional consistency:
-        - Frees previous bed if tenant had one
+        - Releases previous bed to AVAILABLE
         - Marks newly assigned bed as OCCUPIED
-        - Updates tenant record
+        - Updates tenant record with room_id and bed_id
         """
+        if not self.db:
+            raise RuntimeError("Database client not available")
+
         tenant = self.get_tenant_by_id(tenant_id, hostel_id)
         if not tenant:
             raise ValueError(f"Tenant {tenant_id} not found.")
@@ -313,115 +185,96 @@ class TenantService:
             room_service.update_bed_status(hostel_id, old_bed_id, "AVAILABLE")
 
         # 2. Mark new bed as OCCUPIED
-        room_service.update_bed_status(hostel_id, bed_id, "OCCUPIED")
+        if bed_id:
+            room_service.update_bed_status(hostel_id, bed_id, "OCCUPIED")
 
         # 3. Update tenant
         now_iso = datetime.now(timezone.utc).isoformat()
-        with _lock:
-            tenants = self._read_local()
-            for t in tenants:
-                if str(t.get("id")) == str(tenant["id"]) or str(t.get("tenant_code")) == str(tenant["tenant_code"]):
-                    t["room_id"] = room_id
-                    t["bed_id"] = bed_id
-                    t["status"] = "ACTIVE"
-                    t["updated_at"] = now_iso
-                    break
-            self._write_local(tenants)
+        res = (
+            self.db.table("tenants")
+            .update({
+                "room_id": room_id or None,
+                "bed_id": bed_id or None,
+                "updated_at": now_iso,
+            })
+            .eq("id", tenant["id"])
+            .eq("hostel_id", hostel_id)
+            .execute()
+        )
 
-        if self.db:
-            try:
-                self.db.table("tenants").update({
-                    "room_id": room_id,
-                    "bed_id": bed_id,
-                    "status": "ACTIVE",
-                    "updated_at": now_iso
-                }).eq("id", tenant["id"]).execute()
-            except Exception as e:
-                logger.warning(f"Supabase tenant bed assignment sync warning: {e}")
+        return res.data[0] if res.data else tenant
 
-        return self.get_tenant_by_id(tenant_id, hostel_id)
-
-    def vacate_tenant(self, hostel_id: str, tenant_id: str, move_out_date: str = None) -> dict:
+    def vacate_tenant(self, hostel_id: str, tenant_id: str) -> dict:
         """
-        Mark tenant as MOVED_OUT and release their bed back to AVAILABLE.
+        Process tenant checkout/vacating:
+        - Marks status as MOVED_OUT
+        - Releases assigned bed to AVAILABLE
         """
+        if not self.db:
+            raise RuntimeError("Database client not available")
+
         tenant = self.get_tenant_by_id(tenant_id, hostel_id)
         if not tenant:
             raise ValueError(f"Tenant {tenant_id} not found.")
 
-        bed_id = tenant.get("bed_id")
+        # Release bed
         room_service = get_room_service(self.db)
+        if tenant.get("bed_id"):
+            room_service.update_bed_status(hostel_id, tenant["bed_id"], "AVAILABLE")
 
-        # 1. Free bed
-        if bed_id:
-            room_service.update_bed_status(hostel_id, bed_id, "AVAILABLE")
-
-        # 2. Update tenant status to MOVED_OUT
         now_iso = datetime.now(timezone.utc).isoformat()
-        actual_date = move_out_date or date.today().isoformat()
+        res = (
+            self.db.table("tenants")
+            .update({
+                "status": "MOVED_OUT",
+                "updated_at": now_iso,
+            })
+            .eq("id", tenant["id"])
+            .eq("hostel_id", hostel_id)
+            .execute()
+        )
 
-        with _lock:
-            tenants = self._read_local()
-            for t in tenants:
-                if str(t.get("id")) == str(tenant["id"]) or str(t.get("tenant_code")) == str(tenant["tenant_code"]):
-                    t["status"] = "MOVED_OUT"
-                    t["bed_id"] = None
-                    t["expected_end_date"] = actual_date
-                    t["updated_at"] = now_iso
-                    break
-            self._write_local(tenants)
-
-        if self.db:
-            try:
-                self.db.table("tenants").update({
-                    "status": "MOVED_OUT",
-                    "bed_id": None,
-                    "expected_end_date": actual_date,
-                    "updated_at": now_iso
-                }).eq("id", tenant["id"]).execute()
-            except Exception as e:
-                logger.warning(f"Supabase tenant vacate sync warning: {e}")
-
-        return self.get_tenant_by_id(tenant_id, hostel_id)
+        return res.data[0] if res.data else tenant
 
     def get_stats(self, hostel_id: str) -> dict:
         """
-        Calculate tenant statistics for dashboard.
+        Return tenant occupancy metrics for owner dashboard.
         """
         tenants = self.get_tenants(hostel_id)
         total_tenants = len(tenants)
-        active = sum(1 for t in tenants if t.get("status") == "ACTIVE")
-        pending = sum(1 for t in tenants if t.get("status") == "PENDING")
-        notice_period = sum(1 for t in tenants if t.get("status") == "NOTICE_PERIOD")
-        moved_out = sum(1 for t in tenants if t.get("status") == "MOVED_OUT")
+        active_tenants = sum(1 for t in tenants if str(t.get("status", "")).upper() == "ACTIVE")
+        notice_tenants = sum(1 for t in tenants if str(t.get("status", "")).upper() == "NOTICE_PERIOD")
 
-        # Upcoming stay end dates (within 30 days)
         today = date.today()
-        upcoming_end_dates = []
+        upcoming_cutoff = today + timedelta(days=30)
+        upcoming_move_outs = []
+
         for t in tenants:
-            if t.get("status") in ["ACTIVE", "NOTICE_PERIOD"] and t.get("expected_end_date"):
+            if str(t.get("status", "")).upper() in ("ACTIVE", "NOTICE_PERIOD") and t.get("expected_end_date"):
                 try:
-                    end_d = date.fromisoformat(str(t.get("expected_end_date")))
-                    days_left = (end_d - today).days
-                    if 0 <= days_left <= 30:
-                        upcoming_end_dates.append({
+                    end_d = datetime.strptime(str(t["expected_end_date"]).split("T")[0], "%Y-%m-%d").date()
+                    if today <= end_d <= upcoming_cutoff:
+                        days_left = (end_d - today).days
+                        upcoming_move_outs.append({
                             "tenant_id": t.get("id"),
-                            "full_name": t.get("full_name"),
-                            "room_number": t.get("room_number"),
-                            "expected_end_date": str(end_d),
-                            "days_left": days_left
+                            "tenant_code": t.get("tenant_code"),
+                            "name": t.get("full_name"),
+                            "room": t.get("room_number", "-"),
+                            "bed": t.get("bed_code", "-"),
+                            "move_out_date": str(t["expected_end_date"]),
+                            "days_remaining": days_left,
                         })
                 except Exception:
                     pass
 
+        upcoming_move_outs.sort(key=lambda x: x["days_remaining"])
+
         return {
             "total_tenants": total_tenants,
-            "active_tenants": active,
-            "pending_tenants": pending,
-            "notice_period_tenants": notice_period,
-            "moved_out_tenants": moved_out,
-            "upcoming_stay_end_dates_count": len(upcoming_end_dates),
-            "upcoming_stay_end_dates": upcoming_end_dates
+            "active_tenants": active_tenants,
+            "notice_tenants": notice_tenants,
+            "upcoming_stay_end_dates_count": len(upcoming_move_outs),
+            "upcoming_stay_end_dates": upcoming_move_outs,
         }
 
 
@@ -432,6 +285,6 @@ def get_tenant_service(db_client=None) -> TenantService:
     global _tenant_service_instance
     if _tenant_service_instance is None:
         _tenant_service_instance = TenantService(db_client)
-    elif db_client and not _tenant_service_instance.db:
+    elif db_client:
         _tenant_service_instance.db = db_client
     return _tenant_service_instance
