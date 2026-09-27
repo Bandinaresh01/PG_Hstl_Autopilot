@@ -6,7 +6,7 @@ and real-time check-in / check-out gate operations.
 
 import logging
 import uuid
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
 
 logger = logging.getLogger("visitors_repo")
 
@@ -412,37 +412,189 @@ class VisitorsRepository:
 
     def get_dashboard_counts(self, hostel_id: str) -> dict:
         """
-        Return visitor metrics for owner dashboard.
+        Return visitor metrics for owner dashboard:
+        - Visitors Today: visit_date = today
+        - Currently Inside: status = CHECKED_IN
+        - Visitors This Week: visit_date within current week (Monday through Sunday)
+        - Visitors This Month: visit_date within current month
+        - Active visitors list: top 3 currently checked in visitors
         """
         if not self.db:
-            return {"inside_now": 0, "pending_approval": 0, "today_expected": 0}
+            return {
+                "today": 0,
+                "currentlyInside": 0,
+                "currently_inside": 0,
+                "thisWeek": 0,
+                "this_week": 0,
+                "thisMonth": 0,
+                "this_month": 0,
+                "inside_now": 0,
+                "pending_approval": 0,
+                "today_expected": 0,
+                "active": [],
+            }
 
         try:
+            today = date.today()
+            today_str = today.isoformat()
+            
+            # Start of current week (Monday) and end of week (Sunday)
+            start_of_week = today - timedelta(days=today.weekday())
+            end_of_week = start_of_week + timedelta(days=6)
+            
+            # Start of current month and end of month
+            start_of_month = today.replace(day=1)
+            # Next month start minus 1 day
+            if today.month == 12:
+                next_month_start = today.replace(year=today.year + 1, month=1, day=1)
+            else:
+                next_month_start = today.replace(month=today.month + 1, day=1)
+            end_of_month = next_month_start - timedelta(days=1)
+
             res = (
                 self.db.table("visitor_requests")
-                .select("status, visit_date")
+                .select("id, visitor_name, tenant_id, status, visit_date, actual_entry_time, expected_arrival_time, created_at")
                 .eq("hostel_id", hostel_id)
                 .execute()
             )
             records = res.data or []
-            today_str = date.today().isoformat()
 
-            inside_now = sum(1 for v in records if str(v.get("status", "")).upper() == "CHECKED_IN")
-            pending_approval = sum(1 for v in records if str(v.get("status", "")).upper() == "PENDING")
-            today_expected = sum(
-                1 for v in records
-                if str(v.get("visit_date")) == today_str
-                and str(v.get("status", "")).upper() in ("PENDING", "APPROVED")
-            )
+            count_today = 0
+            count_inside = 0
+            count_this_week = 0
+            count_this_month = 0
+            pending_approval = 0
+            today_expected = 0
+            active_raw = []
+
+            for v in records:
+                st = str(v.get("status", "")).upper()
+                v_date_str = str(v.get("visit_date") or "").split("T")[0]
+
+                # Parse date
+                v_date = None
+                if v_date_str:
+                    try:
+                        v_date = datetime.strptime(v_date_str, "%Y-%m-%d").date()
+                    except Exception:
+                        pass
+
+                # 1. Today count: visit_date = today (or entry time occurred today)
+                if v_date == today or v_date_str == today_str:
+                    count_today += 1
+
+                # 2. Currently Inside: status = CHECKED_IN
+                if st == "CHECKED_IN":
+                    count_inside += 1
+                    active_raw.append(v)
+
+                # 3. This Week: visit_date within current week
+                if v_date and start_of_week <= v_date <= end_of_week:
+                    count_this_week += 1
+
+                # 4. This Month: visit_date within current month
+                if v_date and start_of_month <= v_date <= end_of_month:
+                    count_this_month += 1
+
+                # Pending approval & expected
+                if st == "PENDING":
+                    pending_approval += 1
+                if (v_date == today or v_date_str == today_str) and st in ("PENDING", "APPROVED"):
+                    today_expected += 1
+
+            # Resolve tenant info for top 3 active visitors
+            active_list = []
+            if active_raw:
+                tenant_ids = list({str(v.get("tenant_id")) for v in active_raw if v.get("tenant_id")})
+                tenants_map = {}
+                if tenant_ids:
+                    try:
+                        t_res = (
+                            self.db.table("tenants")
+                            .select("id, full_name, room_id")
+                            .in_("id", tenant_ids)
+                            .execute()
+                        )
+                        room_ids = list({str(t.get("room_id")) for t in (t_res.data or []) if t.get("room_id")})
+                        rooms_map = {}
+                        if room_ids:
+                            try:
+                                r_res = (
+                                    self.db.table("rooms")
+                                    .select("id, room_number")
+                                    .in_("id", room_ids)
+                                    .execute()
+                                )
+                                for rm in (r_res.data or []):
+                                    r_num = str(rm.get("room_number") or "-")
+                                    if not r_num.startswith("Room ") and r_num != "-":
+                                        r_num = f"Room {r_num}"
+                                    rooms_map[str(rm["id"])] = r_num
+                            except Exception as rm_ex:
+                                logger.debug(f"Error resolving room numbers for visitors: {rm_ex}")
+
+                        for t in (t_res.data or []):
+                            r_num = rooms_map.get(str(t.get("room_id")), "-")
+                            tenants_map[str(t["id"])] = {
+                                "tenant_name": t.get("full_name") or "Resident",
+                                "room_number": r_num,
+                            }
+                    except Exception as ex:
+                        logger.debug(f"Error resolving tenants for active visitors: {ex}")
+
+                for v in active_raw[:3]:
+                    t_info = tenants_map.get(str(v.get("tenant_id")), {"tenant_name": "Resident", "room_number": "-"})
+                    
+                    # Format check-in time nicely (e.g. 3:10 PM)
+                    entry_raw = v.get("actual_entry_time") or v.get("created_at") or ""
+                    time_display = "Recently"
+                    if entry_raw:
+                        try:
+                            clean_time = entry_raw.replace("Z", "+00:00")
+                            dt = datetime.fromisoformat(clean_time)
+                            time_display = dt.strftime("%I:%M %p")
+                        except Exception:
+                            time_display = entry_raw.split("T")[-1][:5] if "T" in entry_raw else "Checked in"
+
+                    active_list.append({
+                        "id": v.get("id"),
+                        "visitor_name": v.get("visitor_name") or "Visitor",
+                        "visiting_tenant": t_info["tenant_name"],
+                        "tenant_name": t_info["tenant_name"],
+                        "room": t_info["room_number"],
+                        "room_number": t_info["room_number"],
+                        "checked_in_time": time_display,
+                        "status": "CHECKED_IN",
+                    })
 
             return {
-                "inside_now": inside_now,
+                "today": count_today,
+                "currentlyInside": count_inside,
+                "currently_inside": count_inside,
+                "thisWeek": count_this_week,
+                "this_week": count_this_week,
+                "thisMonth": count_this_month,
+                "this_month": count_this_month,
+                "inside_now": count_inside,
                 "pending_approval": pending_approval,
                 "today_expected": today_expected,
+                "active": active_list,
             }
         except Exception as e:
             logger.error(f"Error computing visitor dashboard counts: {e}")
-            return {"inside_now": 0, "pending_approval": 0, "today_expected": 0}
+            return {
+                "today": 0,
+                "currentlyInside": 0,
+                "currently_inside": 0,
+                "thisWeek": 0,
+                "this_week": 0,
+                "thisMonth": 0,
+                "this_month": 0,
+                "inside_now": 0,
+                "pending_approval": 0,
+                "today_expected": 0,
+                "active": [],
+            }
 
     def get_tenant_visitor_summary(self, hostel_id: str, tenant_id_filters: list) -> dict:
         """

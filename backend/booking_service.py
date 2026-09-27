@@ -161,18 +161,57 @@ class BookingService:
     def get_stats(self, hostel_id: str) -> dict:
         """
         Return booking reservation metrics for owner dashboard.
+        Upcoming move-ins: CONFIRMED bookings with expected_move_in_date >= today.
         """
         bookings = self.get_bookings(hostel_id)
         total_bookings = len(bookings)
-        upcoming = [
-            b for b in bookings
-            if str(b.get("booking_status", "")).upper() in ("CONFIRMED", "PENDING")
-        ]
+        today = date.today()
+        today_str = today.isoformat()
+
+        upcoming_move_ins = []
+        for b in bookings:
+            st = str(b.get("booking_status", "")).upper()
+            if st in ("CONFIRMED", "PENDING"):
+                move_in_raw = str(b.get("expected_move_in_date") or "").split("T")[0]
+                days_left = 0
+                formatted_date = move_in_raw or "Upcoming"
+                if move_in_raw:
+                    try:
+                        m_date = datetime.strptime(move_in_raw, "%Y-%m-%d").date()
+                        if m_date < today:
+                            continue  # Past date
+                        days_left = (m_date - today).days
+                        formatted_date = m_date.strftime("%b %d, %Y")
+                    except Exception:
+                        pass
+
+                r_num = str(b.get("room_number") or "-")
+                if not r_num.startswith("Room ") and r_num != "-":
+                    r_num = f"Room {r_num}"
+
+                upcoming_move_ins.append({
+                    "id": b.get("id"),
+                    "booking_code": b.get("booking_code"),
+                    "guest_name": b.get("guest_name") or b.get("name") or "Resident",
+                    "name": b.get("guest_name") or b.get("name") or "Resident",
+                    "room": r_num,
+                    "room_number": r_num,
+                    "bed": b.get("bed_code") or "-",
+                    "bed_code": b.get("bed_code") or "-",
+                    "expected_move_in_date": move_in_raw,
+                    "move_in_date": move_in_raw,
+                    "formatted_date": formatted_date,
+                    "days_remaining": days_left,
+                    "booking_status": st,
+                })
+
+        upcoming_move_ins.sort(key=lambda x: x["days_remaining"])
 
         return {
             "total_bookings": total_bookings,
-            "upcoming_bookings_count": len(upcoming),
-            "upcoming_bookings": upcoming,
+            "upcoming_bookings_count": len(upcoming_move_ins),
+            "upcoming_bookings": upcoming_move_ins,
+            "upcoming_move_ins": upcoming_move_ins,
         }
 
 

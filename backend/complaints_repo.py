@@ -374,7 +374,7 @@ class ComplaintsMaintenanceRepository:
         try:
             c_res = (
                 self.db.table("complaints")
-                .select("status")
+                .select("status, priority")
                 .eq("hostel_id", hostel_id)
                 .execute()
             )
@@ -383,27 +383,64 @@ class ComplaintsMaintenanceRepository:
                 1 for c in c_list
                 if str(c.get("status", "")).upper() not in ("RESOLVED", "CLOSED")
             )
+            high_priority_complaints = sum(
+                1 for c in c_list
+                if str(c.get("status", "")).upper() not in ("RESOLVED", "CLOSED")
+                and str(c.get("priority", "")).upper() in ("HIGH", "URGENT")
+            )
 
             m_res = (
                 self.db.table("maintenance_tasks")
-                .select("status")
+                .select("status, priority, scheduled_date, due_date")
                 .eq("hostel_id", hostel_id)
                 .execute()
             )
             m_list = m_res.data or []
+            in_progress = sum(
+                1 for m in m_list
+                if str(m.get("status", "")).upper() in ("IN_PROGRESS", "ASSIGNED")
+            )
             open_maintenance = sum(
                 1 for m in m_list
                 if str(m.get("status", "")).upper() in ("OPEN", "SCHEDULED", "ASSIGNED", "IN_PROGRESS")
             )
+            today_str = date.today().isoformat()
+            overdue_maintenance = sum(
+                1 for m in m_list
+                if str(m.get("status", "")).upper() not in ("COMPLETED", "CANCELLED")
+                and (
+                    (m.get("due_date") and str(m["due_date"]) < today_str) or
+                    (m.get("scheduled_date") and str(m["scheduled_date"]) < today_str and str(m.get("status", "")).upper() == "SCHEDULED") or
+                    str(m.get("priority", "")).upper() == "URGENT"
+                )
+            )
 
             return {
                 "open_complaints": open_complaints,
+                "openComplaints": open_complaints,
+                "high_priority_complaints": high_priority_complaints,
+                "highPriority": high_priority_complaints,
                 "maintenance_attention": open_maintenance,
                 "open_maintenance": open_maintenance,
+                "maintenance_in_progress": in_progress,
+                "inProgress": in_progress,
+                "overdue_maintenance": overdue_maintenance,
+                "overdue": overdue_maintenance,
             }
         except Exception as e:
             logger.error(f"Error computing complaint dashboard counts: {e}")
-            return {"open_complaints": 0, "maintenance_attention": 0, "open_maintenance": 0}
+            return {
+                "open_complaints": 0,
+                "openComplaints": 0,
+                "high_priority_complaints": 0,
+                "highPriority": 0,
+                "maintenance_attention": 0,
+                "open_maintenance": 0,
+                "maintenance_in_progress": 0,
+                "inProgress": 0,
+                "overdue_maintenance": 0,
+                "overdue": 0,
+            }
 
     def get_tenant_complaint_summary(self, hostel_id: str, tenant_id_filters: list) -> dict:
         """

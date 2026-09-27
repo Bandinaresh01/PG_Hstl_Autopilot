@@ -1602,17 +1602,88 @@ def get_owner_dashboard():
                 "action_link": "/owner/tenants",
             })
 
-        # Real activity feed
-        recent_activity = [
-            {
-                "id": f"act-{enq['id']}",
+        # Real activity feed gathered across recent events
+        activity_items = []
+        for enq in parsed_enquiries[:4]:
+            activity_items.append({
+                "id": f"act-enq-{enq['id']}",
                 "type": "enquiry",
-                "text": f"New enquiry received from {enq['name']}",
-                "subtext": f"{enq['preferred_room']} • Move-in: {enq['move_in_date']}",
-                "created_at": enq["created_at"],
-            }
-            for enq in recent_enquiries
-        ]
+                "icon": "📩",
+                "text": f"New enquiry from {enq['name']}",
+                "subtext": f"{enq['preferred_room']} • Move-in {enq['move_in_date']}",
+                "created_at": enq.get("created_at") or datetime.now(timezone.utc).isoformat(),
+            })
+
+        # Fetch recent payments for activity feed
+        try:
+            p_res = (
+                db.table("payments")
+                .select("id, tenant_id, amount_paid, payment_method, created_at, status")
+                .eq("hostel_id", hostel_id)
+                .order("created_at", desc=True)
+                .limit(4)
+                .execute()
+            )
+            for p in (p_res.data or []):
+                if float(p.get("amount_paid", 0)) > 0:
+                    activity_items.append({
+                        "id": f"act-pay-{p['id']}",
+                        "type": "payment",
+                        "icon": "💳",
+                        "text": f"Payment recorded: ₹{float(p['amount_paid']):,.0f}",
+                        "subtext": f"Via {p.get('payment_method', 'UPI')} • {p.get('status', 'PAID')}",
+                        "created_at": p.get("created_at") or datetime.now(timezone.utc).isoformat(),
+                    })
+        except Exception:
+            pass
+
+        # Fetch recent bookings for activity feed
+        try:
+            b_res = (
+                db.table("bookings")
+                .select("id, guest_name, booking_code, booking_status, created_at")
+                .eq("hostel_id", hostel_id)
+                .order("created_at", desc=True)
+                .limit(3)
+                .execute()
+            )
+            for b in (b_res.data or []):
+                activity_items.append({
+                    "id": f"act-book-{b['id']}",
+                    "type": "booking",
+                    "icon": "📅",
+                    "text": f"Booking confirmed: {b.get('guest_name', 'Guest')}",
+                    "subtext": f"Code: {b.get('booking_code')} • Status: {b.get('booking_status')}",
+                    "created_at": b.get("created_at") or datetime.now(timezone.utc).isoformat(),
+                })
+        except Exception:
+            pass
+
+        # Fetch recent complaints for activity feed
+        try:
+            comp_res = (
+                db.table("complaints")
+                .select("id, title, category, priority, created_at")
+                .eq("hostel_id", hostel_id)
+                .order("created_at", desc=True)
+                .limit(3)
+                .execute()
+            )
+            for c in (comp_res.data or []):
+                activity_items.append({
+                    "id": f"act-comp-{c['id']}",
+                    "type": "complaint",
+                    "icon": "⚠️",
+                    "text": f"Complaint: {c.get('title', 'Ticket')}",
+                    "subtext": f"{c.get('category', 'Maintenance')} • Priority {c.get('priority')}",
+                    "created_at": c.get("created_at") or datetime.now(timezone.utc).isoformat(),
+                })
+        except Exception:
+            pass
+
+        # Sort all activities by created_at descending
+        activity_items.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
+        recent_activity = activity_items[:8]
 
         # Real aggregated payment & rent financial metrics from unified repository
         repo = get_payment_repo()
@@ -1626,7 +1697,72 @@ def get_owner_dashboard():
         v_repo = get_visitors_repo()
         visitor_metrics = v_repo.get_dashboard_counts(owner["hostel_id"])
 
+        # Build clean, systematic structured dashboard payload
+        dashboard_property = {
+            "floors": room_stats.get("floors_count", 0),
+            "rooms": room_stats.get("total_rooms", 0),
+            "beds": room_stats.get("total_beds", 0),
+            "roomsFullyOccupied": room_stats.get("roomsFullyOccupied", 0),
+            "roomsPartiallyOccupied": room_stats.get("roomsPartiallyOccupied", 0),
+            "roomsVacant": room_stats.get("roomsVacant", 0),
+            "roomsMaintenance": room_stats.get("roomsMaintenance", 0),
+            "bedsOccupied": room_stats.get("occupied_beds", 0),
+            "bedsAvailable": room_stats.get("available_beds", 0),
+            "bedsReserved": room_stats.get("reserved_beds", 0),
+            "occupancyRate": room_stats.get("occupancy_rate", 0.0),
+        }
+
+        floor_summary = room_stats.get("floors", [])
+
+        upcoming_vacancies = tenant_stats.get("upcoming_vacancies", [])[:5]
+        full_room_vacancies = tenant_stats.get("full_room_vacancies", [])
+        upcoming_move_ins = booking_stats.get("upcoming_move_ins", [])[:5]
+
+        rent_overview = {
+            "expected": payment_metrics.get("expected_rent", 0.0),
+            "collected": payment_metrics.get("collected_rent", 0.0),
+            "pending": payment_metrics.get("pending_rent", 0.0),
+            "overdue": payment_metrics.get("overdue_rent", 0.0),
+        }
+
+        visitors_overview = {
+            "today": visitor_metrics.get("today", 0),
+            "currentlyInside": visitor_metrics.get("currentlyInside", 0),
+            "thisWeek": visitor_metrics.get("thisWeek", 0),
+            "thisMonth": visitor_metrics.get("thisMonth", 0),
+            "active": visitor_metrics.get("active", []),
+        }
+
+        complaints_overview = {
+            "open": ops_metrics.get("openComplaints", 0),
+            "highPriority": ops_metrics.get("highPriority", 0),
+        }
+
+        maintenance_overview = {
+            "inProgress": ops_metrics.get("inProgress", 0),
+            "overdue": ops_metrics.get("overdue", 0),
+        }
+
+        leads_overview = {
+            "new": status_counts.get("new", 0),
+            "total": status_counts.get("total", 0),
+        }
+
         return jsonify({
+            # New Structured Hierarchy Payload
+            "property": dashboard_property,
+            "floorSummary": floor_summary,
+            "upcomingVacancies": upcoming_vacancies,
+            "fullRoomVacancies": full_room_vacancies,
+            "upcomingMoveIns": upcoming_move_ins,
+            "rent": rent_overview,
+            "visitors": visitors_overview,
+            "complaints": complaints_overview,
+            "maintenance": maintenance_overview,
+            "leads": leads_overview,
+            "recentActivity": recent_activity,
+
+            # Backward-compatible fields
             "hostel": {
                 "id": owner["hostel_id"],
                 "name": owner["hostel_name"],
@@ -1647,38 +1783,26 @@ def get_owner_dashboard():
                 "occupancy_rate": room_stats["occupancy_rate"],
                 "current_tenants": tenant_stats["active_tenants"],
                 "total_tenants": tenant_stats["total_tenants"],
-                "upcoming_move_outs": tenant_stats["upcoming_stay_end_dates_count"],
-                "upcoming_bookings": booking_stats["upcoming_bookings_count"],
+                "upcoming_move_outs": len(upcoming_vacancies),
+                "upcoming_bookings": len(upcoming_move_ins),
             },
             "enquiries": status_counts,
-            "financials": {
-                "expected_rent": payment_metrics["expected_rent"],
-                "collected_rent": payment_metrics["collected_rent"],
-                "pending_rent": payment_metrics["pending_rent"],
-                "overdue_rent": payment_metrics["overdue_rent"],
-                "monthly_expenses": 0,
-            },
-            "operations": {
-                "open_complaints": ops_metrics["open_complaints"],
-                "maintenance_attention": ops_metrics["maintenance_attention"],
-                "visitors_inside": visitor_metrics["inside_now"],
-                "pending_visitors": visitor_metrics["pending_approval"],
-            },
+            "financials": payment_metrics,
+            "operations": ops_metrics,
             "property_overview": {
                 "floors_count": room_stats.get("floors_count", 0),
-                "total_rooms": room_stats["total_rooms"],
-                "total_beds": room_stats["total_beds"],
+                "rooms_count": room_stats["total_rooms"],
+                "beds_count": room_stats["total_beds"],
                 "occupied_beds": room_stats["occupied_beds"],
                 "available_beds": room_stats["available_beds"],
                 "reserved_beds": room_stats["reserved_beds"],
                 "occupancy_rate": room_stats["occupancy_rate"],
-                "floors": room_stats.get("floors", []),
+                "floor_summaries": floor_summary,
             },
-            "upcoming_stay_end_dates": tenant_stats["upcoming_stay_end_dates"],
-            "upcoming_bookings_list": booking_stats["upcoming_bookings"][:5],
+            "upcoming_stay_end_dates": upcoming_vacancies,
+            "upcoming_bookings_list": upcoming_move_ins,
             "recent_enquiries": recent_enquiries,
             "alerts": alerts,
-            "recent_activity": recent_activity,
         }), 200
 
     except Exception as e:

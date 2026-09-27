@@ -109,106 +109,114 @@ export default function OwnerDashboardPage() {
     )
   }
 
-  const summary = {
-    total_rooms: dashboardData?.summary?.total_rooms || 0,
-    total_beds: dashboardData?.summary?.total_beds || 0,
-    occupied_beds: dashboardData?.summary?.occupied_beds || 0,
-    available_beds: dashboardData?.summary?.available_beds || 0,
-    reserved_beds: dashboardData?.summary?.reserved_beds || 0,
-    maintenance_beds: dashboardData?.summary?.maintenance_beds || 0,
-    current_tenants: dashboardData?.summary?.current_tenants || 0,
-    occupancy_rate: dashboardData?.summary?.occupancy_rate || 0,
+  // Parse structured metrics strictly from database
+  const property = dashboardData?.property || {
+    floors: 0,
+    rooms: 0,
+    beds: 0,
+    roomsFullyOccupied: 0,
+    roomsPartiallyOccupied: 0,
+    roomsVacant: 0,
+    roomsMaintenance: 0,
+    bedsOccupied: 0,
+    bedsAvailable: 0,
+    bedsReserved: 0,
+    occupancyRate: 0,
   }
 
-  const financials = dashboardData?.financials || {
-    expected_rent: 0,
-    collected_rent: 0,
-    pending_rent: 0,
-    overdue_rent: 0,
-    monthly_expenses: 0,
+  const floorSummary = dashboardData?.floorSummary || []
+  const upcomingVacancies = dashboardData?.upcomingVacancies || []
+  const fullRoomVacancies = dashboardData?.fullRoomVacancies || []
+  const upcomingMoveIns = dashboardData?.upcomingMoveIns || []
+  const rent = dashboardData?.rent || {
+    expected: 0,
+    collected: 0,
+    pending: 0,
+    overdue: 0,
   }
-
-  const enquiriesKpi = dashboardData?.enquiries || {
-    new: 0,
-    interested: 0,
-    visit_scheduled: 0,
-    booked: 0,
-    total: 0,
+  const visitors = dashboardData?.visitors || {
+    today: 0,
+    currentlyInside: 0,
+    thisWeek: 0,
+    thisMonth: 0,
+    active: [],
   }
+  const complaints = dashboardData?.complaints || { open: 0, highPriority: 0 }
+  const maintenance = dashboardData?.maintenance || { inProgress: 0, overdue: 0 }
+  const leads = dashboardData?.leads || { new: 0, total: 0 }
+  const recentActivity = dashboardData?.recentActivity || []
 
-  const operations = dashboardData?.operations || {
-    open_complaints: 0,
-    maintenance_attention: 0,
-    visitors_inside: 0,
-    pending_visitors: 0,
-  }
-
-  const upcomingBookings = dashboardData?.upcoming_bookings_list || []
-  const upcomingStayEnds = dashboardData?.upcoming_stay_end_dates || []
-  const recentActivity = (dashboardData?.recent_activity || []).slice(0, 5)
-
-  const propertyOverview = dashboardData?.property_overview || {
-    floors_count: 0,
-    rooms_count: summary.total_rooms,
-    beds_count: summary.total_beds,
-    occupied_beds: summary.occupied_beds,
-    available_beds: summary.available_beds,
-    occupancy_rate: summary.occupancy_rate,
-    floor_summaries: [],
-  }
-
-  // Real Attention Items
+  // Derive Actionable Needs Attention items
   const attentionItems = []
-  if (enquiriesKpi.new > 0) {
+  if (leads.new > 0) {
     attentionItems.push({
-      id: 'att-enq',
+      id: 'att-leads',
       type: 'warning',
       icon: '📩',
-      title: `${enquiriesKpi.new} New ${enquiriesKpi.new === 1 ? 'Lead' : 'Leads'}`,
-      description: 'Prospective tenant enquiries awaiting owner response.',
+      title: `${leads.new} new ${leads.new === 1 ? 'enquiry requires' : 'enquiries require'} follow-up`,
       actionText: 'Review Leads',
       actionLink: '/owner/leads',
     })
   }
-  if (financials.overdue_rent > 0 || financials.pending_rent > 0) {
-    const overdueAmt = financials.overdue_rent > 0 ? `₹${financials.overdue_rent.toLocaleString('en-IN')} overdue` : `₹${financials.pending_rent.toLocaleString('en-IN')} pending`
+  if (rent.overdue > 0) {
     attentionItems.push({
-      id: 'att-dues',
+      id: 'att-rent',
       type: 'danger',
       icon: '💳',
-      title: `${overdueAmt} Rent Balance`,
-      description: 'Rent cycles require collection follow-up.',
+      title: `₹${rent.overdue.toLocaleString('en-IN')} overdue rent payments require collection`,
       actionText: 'View Dues',
       actionLink: '/owner/dues',
     })
   }
-  if (operations.open_complaints > 0) {
+  const vacanciesThisWeek = upcomingVacancies.filter((v) => v.days_remaining <= 7)
+  if (vacanciesThisWeek.length > 0) {
+    attentionItems.push({
+      id: 'att-vacancies-week',
+      type: 'info',
+      icon: '🛏️',
+      title: `${vacanciesThisWeek.length} upcoming ${vacanciesThisWeek.length === 1 ? 'vacancy' : 'vacancies'} this week`,
+      actionText: 'View Tenants',
+      actionLink: '/owner/tenants',
+    })
+  }
+  if (upcomingMoveIns.length > 0) {
+    attentionItems.push({
+      id: 'att-moveins',
+      type: 'info',
+      icon: '📅',
+      title: `${upcomingMoveIns.length} upcoming ${upcomingMoveIns.length === 1 ? 'move-in' : 'move-ins'} scheduled`,
+      actionText: 'View Bookings',
+      actionLink: '/owner/bookings',
+    })
+  }
+  if (complaints.highPriority > 0) {
     attentionItems.push({
       id: 'att-complaints',
-      type: 'warning',
+      type: 'danger',
       icon: '⚠️',
-      title: `${operations.open_complaints} Open Complaints`,
-      description: 'Tenant maintenance or facility requests awaiting resolution.',
-      actionText: 'Manage Tickets',
+      title: `${complaints.highPriority} high-priority ${complaints.highPriority === 1 ? 'complaint' : 'complaints'} pending`,
+      actionText: 'Manage Complaints',
       actionLink: '/owner/complaints',
     })
   }
-  if (summary.available_beds > 0) {
+  if (maintenance.overdue > 0) {
     attentionItems.push({
-      id: 'att-vacant',
-      type: 'info',
-      icon: '🛏️',
-      title: `${summary.available_beds} Vacant Beds Ready`,
-      description: 'Available capacity ready for tenant assignment or new bookings.',
-      actionText: 'Assign Room',
-      actionLink: '/owner/rooms',
+      id: 'att-maintenance',
+      type: 'warning',
+      icon: '🔧',
+      title: `${maintenance.overdue} maintenance ${maintenance.overdue === 1 ? 'task' : 'tasks'} overdue or urgent`,
+      actionText: 'Track Maintenance',
+      actionLink: '/owner/maintenance',
     })
   }
+
+  // Rent realization rate
+  const rentRealizedPercent = rent.expected > 0 ? Math.min(100, Math.round((rent.collected / rent.expected) * 100)) : 0
 
   return (
     <div className="owner-dashboard-view">
       {/* ==================================================
-          SECTION 1: HEADER / CONTEXT & QUICK ACTIONS
+          SECTION 1: HEADER (COMPACT & SYSTEMATIC)
       ================================================== */}
       <section className="dashboard-intro-row">
         <div className="dashboard-greeting-block">
@@ -216,41 +224,20 @@ export default function OwnerDashboardPage() {
             {getGreeting()}, {firstName} 👋
           </h2>
           <p className="dashboard-greeting-desc">
-            {hostelName} • {currentDateFormatted}
+            Here’s what needs your attention today • {hostelName} • {currentDateFormatted}
           </p>
         </div>
 
-        {/* Quick Actions Bar */}
         <div className="quick-actions-bar">
-          <Link
-            to="/owner/tenants"
-            className="quick-action-btn primary"
-            style={{ textDecoration: 'none' }}
-          >
-            <span className="btn-icon">+</span>
-            <span>Add Tenant</span>
-          </Link>
-          <Link
-            to="/owner/rooms"
-            className="quick-action-btn"
-            style={{ textDecoration: 'none' }}
-          >
-            <span className="btn-icon">+</span>
-            <span>Add Room</span>
-          </Link>
-          <Link
-            to="/owner/property"
-            className="quick-action-btn"
-            style={{ textDecoration: 'none' }}
-          >
+          <Link to="/owner/property" className="quick-action-btn primary" style={{ textDecoration: 'none' }}>
             <span className="btn-icon">🏢</span>
-            <span>Property Setup</span>
+            <span>Manage Property</span>
           </Link>
-          <Link
-            to="/owner/payments"
-            className="quick-action-btn"
-            style={{ textDecoration: 'none' }}
-          >
+          <Link to="/owner/rooms" className="quick-action-btn" style={{ textDecoration: 'none' }}>
+            <span className="btn-icon">🛏️</span>
+            <span>View Rooms</span>
+          </Link>
+          <Link to="/owner/payments" className="quick-action-btn" style={{ textDecoration: 'none' }}>
             <span className="btn-icon">₹</span>
             <span>Record Payment</span>
           </Link>
@@ -268,68 +255,127 @@ export default function OwnerDashboardPage() {
       </section>
 
       {/* ==================================================
-          SECTION 2: PRIMARY KPIS (4 CLEAR CARDS ONLY)
+          SECTION 2: PROPERTY OCCUPANCY (FULL WIDTH)
       ================================================== */}
-      <section className="kpi-primary-grid">
-        <Link to="/owner/rooms" className="kpi-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <div className="kpi-card-header">
-            <span className="kpi-card-label">Occupancy Rate</span>
-            <div className="kpi-card-icon icon-occupied">📊</div>
+      <section className="dashboard-card occupancy-section">
+        <div className="section-card-header">
+          <div>
+            <h3 className="section-title">Property Occupancy</h3>
+            <p className="section-subtitle">
+              Building capacity, room classifications derived from beds, and current occupancy rate
+            </p>
           </div>
-          <div className="kpi-card-number">{summary.occupancy_rate}%</div>
-          <div className="kpi-card-footer">
-            <span className="kpi-badge-neutral" style={{ backgroundColor: '#eff6ff', color: '#1d4ed8' }}>
-              {summary.occupied_beds} / {summary.total_beds} Beds Occupied
-            </span>
-            <span className="kpi-sub-text">View inventory &rarr;</span>
+          <div className="section-header-links">
+            <Link to="/owner/property" className="view-all-link">
+              <span>Manage Property</span>
+              <span aria-hidden="true">&rarr;</span>
+            </Link>
+            <span className="link-divider">•</span>
+            <Link to="/owner/rooms" className="view-all-link">
+              <span>View Rooms</span>
+              <span aria-hidden="true">&rarr;</span>
+            </Link>
           </div>
-        </Link>
+        </div>
 
-        <Link to="/owner/tenants" className="kpi-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <div className="kpi-card-header">
-            <span className="kpi-card-label">Current Tenants</span>
-            <div className="kpi-card-icon icon-tenants">👥</div>
+        {/* Primary Occupancy Metrics Bar */}
+        <div className="occupancy-kpi-strip">
+          <div className="occ-kpi-item">
+            <span className="occ-kpi-label">TOTAL FLOORS</span>
+            <span className="occ-kpi-num">{property.floors}</span>
+            <span className="occ-kpi-sub">Levels configured</span>
           </div>
-          <div className="kpi-card-number">{summary.current_tenants}</div>
-          <div className="kpi-card-footer">
-            <span className="kpi-badge-neutral">{summary.total_rooms} Rooms</span>
-            <span className="kpi-sub-text">Resident directory &rarr;</span>
+          <div className="occ-kpi-item">
+            <span className="occ-kpi-label">TOTAL ROOMS</span>
+            <span className="occ-kpi-num">{property.rooms}</span>
+            <span className="occ-kpi-sub">{property.beds} Total Beds</span>
           </div>
-        </Link>
+          <div className="occ-kpi-item occ-highlight-blue">
+            <span className="occ-kpi-label">OCCUPIED BEDS</span>
+            <span className="occ-kpi-num">{property.bedsOccupied}</span>
+            <span className="occ-kpi-sub">{property.occupancyRate}% Occupancy</span>
+          </div>
+          <div className="occ-kpi-item occ-highlight-green">
+            <span className="occ-kpi-label">AVAILABLE BEDS</span>
+            <span className="occ-kpi-num">{property.bedsAvailable}</span>
+            <span className="occ-kpi-sub">Ready for Move-In</span>
+          </div>
+          <div className="occ-kpi-item occ-highlight-purple">
+            <span className="occ-kpi-label">RESERVED BEDS</span>
+            <span className="occ-kpi-num">{property.bedsReserved}</span>
+            <span className="occ-kpi-sub">Queued Bookings</span>
+          </div>
+        </div>
 
-        <Link to="/owner/leads" className="kpi-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <div className="kpi-card-header">
-            <span className="kpi-card-label">New Leads</span>
-            <div className="kpi-card-icon icon-enquiries" style={{ backgroundColor: '#eff6ff', color: '#2563eb' }}>📩</div>
+        {/* Room Classification Cards (Derived from Beds Table) */}
+        <div className="room-classification-grid">
+          <div className="room-class-card class-full">
+            <div className="room-class-header">
+              <span className="room-class-badge badge-full">Fully Occupied</span>
+              <span className="room-class-count">{property.roomsFullyOccupied}</span>
+            </div>
+            <p className="room-class-desc">Rooms with all beds currently filled</p>
           </div>
-          <div className="kpi-card-number">{enquiriesKpi.new}</div>
-          <div className="kpi-card-footer">
-            <span className="kpi-badge-neutral" style={{ backgroundColor: '#dbeafe', color: '#1e40af' }}>
-              {enquiriesKpi.total} Total Enquiries
-            </span>
-            <span className="kpi-sub-text">Manage leads &rarr;</span>
-          </div>
-        </Link>
 
-        <Link to="/owner/payments" className="kpi-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <div className="kpi-card-header">
-            <span className="kpi-card-label">Rent Collected</span>
-            <div className="kpi-card-icon" style={{ backgroundColor: '#f0fdf4', color: '#16a34a' }}>₹</div>
+          <div className="room-class-card class-partial">
+            <div className="room-class-header">
+              <span className="room-class-badge badge-partial">Partially Filled</span>
+              <span className="room-class-count">{property.roomsPartiallyOccupied}</span>
+            </div>
+            <p className="room-class-desc">Rooms with some beds occupied &amp; some available</p>
           </div>
-          <div className="kpi-card-number" style={{ color: '#16a34a' }}>
-            ₹{financials.collected_rent.toLocaleString('en-IN')}
+
+          <div className="room-class-card class-vacant">
+            <div className="room-class-header">
+              <span className="room-class-badge badge-vacant">Vacant</span>
+              <span className="room-class-count">{property.roomsVacant}</span>
+            </div>
+            <p className="room-class-desc">Rooms completely empty &amp; ready to assign</p>
           </div>
-          <div className="kpi-card-footer">
-            <span className="kpi-badge-neutral">
-              Target: ₹{financials.expected_rent.toLocaleString('en-IN')}
-            </span>
-            <span className="kpi-sub-text">Payments ledger &rarr;</span>
+
+          <div className="room-class-card class-maint">
+            <div className="room-class-header">
+              <span className="room-class-badge badge-maint">Maintenance</span>
+              <span className="room-class-count">{property.roomsMaintenance}</span>
+            </div>
+            <p className="room-class-desc">Rooms offline or under renovation</p>
           </div>
-        </Link>
+        </div>
+
+        {/* Floor Breakdown Strip */}
+        {floorSummary.length > 0 && (
+          <div className="floor-summary-breakdown">
+            <div className="floor-breakdown-title">FLOOR BREAKDOWN</div>
+            <div className="floor-cards-row">
+              {floorSummary.map((f) => {
+                const fName = f.floor_name || `Floor ${f.floor_number}`
+                return (
+                  <Link
+                    key={f.id || f.floor_number}
+                    to="/owner/rooms"
+                    className="floor-mini-card"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <div className="floor-mini-name">{fName.toUpperCase()}</div>
+                    <div className="floor-mini-stats">
+                      <span>{f.rooms_count} Rooms</span>
+                      <span className="bullet">•</span>
+                      <span>{f.total_beds || f.beds_count || 0} Beds</span>
+                    </div>
+                    <div className="floor-mini-pills">
+                      <span className="pill-occ">{f.occupied_beds || 0} Occupied</span>
+                      <span className="pill-avail">{f.available_beds || 0} Available</span>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* ==================================================
-          SECTION 3: NEEDS ATTENTION (ACTIONABLE ALERTS)
+          SECTION 3: NEEDS ATTENTION (FULL WIDTH)
       ================================================== */}
       <section className="important-alerts-grid">
         {attentionItems.length === 0 ? (
@@ -350,7 +396,6 @@ export default function OwnerDashboardPage() {
                 <strong className="alert-card-title">
                   {item.icon} {item.title}
                 </strong>
-                <p className="alert-card-desc">{item.description}</p>
               </div>
               <Link to={item.actionLink} className="alert-action-link">
                 <span>{item.actionText}</span>
@@ -362,131 +407,76 @@ export default function OwnerDashboardPage() {
       </section>
 
       {/* ==================================================
-          SECTION 4: BUSINESS OVERVIEW (SIDE-BY-SIDE)
+          SECTION 4: UPCOMING VACANCIES & MOVE-INS (TWO COLUMNS)
       ================================================== */}
       <section className="dashboard-grid-two-col">
-        {/* Column 1: Rent Collection Summary */}
-        <div className="financial-preview-card">
-          <div className="section-card-header">
-            <div>
-              <h3 className="section-title">Rent Collection Summary</h3>
-              <p className="section-subtitle">Real-time ledger overview for the current billing cycle</p>
-            </div>
-            <Link to="/owner/payments" className="view-all-link">
-              <span>Payments Ledger</span>
-              <span aria-hidden="true">&rarr;</span>
-            </Link>
-          </div>
-
-          <div className="financial-kpi-subgrid">
-            <div className="fin-card">
-              <span className="fin-label">Expected Target</span>
-              <span className="fin-value">₹{financials.expected_rent.toLocaleString('en-IN')}</span>
-              <span className="fin-sub">Monthly target</span>
-            </div>
-            <div className="fin-card">
-              <span className="fin-label">Collected</span>
-              <span className="fin-value" style={{ color: '#16a34a' }}>₹{financials.collected_rent.toLocaleString('en-IN')}</span>
-              <span className="fin-sub">
-                {financials.expected_rent > 0
-                  ? `${Math.round((financials.collected_rent / financials.expected_rent) * 100)}% realized`
-                  : 'Collections'}
-              </span>
-            </div>
-            <div className="fin-card">
-              <span className="fin-label">Pending</span>
-              <span className="fin-value" style={{ color: '#b45309' }}>₹{financials.pending_rent.toLocaleString('en-IN')}</span>
-              <span className="fin-sub">Due this cycle</span>
-            </div>
-            <div className="fin-card">
-              <span className="fin-label">Overdue</span>
-              <span className="fin-value" style={{ color: '#dc2626' }}>₹{financials.overdue_rent.toLocaleString('en-IN')}</span>
-              <span className="fin-sub">Needs follow-up</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Column 2: Occupancy Breakdown */}
+        {/* Column 1: Upcoming Vacancies */}
         <div className="dashboard-sub-card">
           <div className="section-card-header">
             <div>
-              <h3 className="section-title">Occupancy Breakdown</h3>
-              <p className="section-subtitle">Bed capacity distribution across {summary.total_rooms} rooms</p>
+              <h3 className="section-title">Upcoming Vacancies</h3>
+              <p className="section-subtitle">Occupied beds becoming available in the next 30 days</p>
             </div>
-            <Link to="/owner/rooms" className="view-all-link">
-              <span>Manage Rooms</span>
+            <Link to="/owner/tenants" className="view-all-link">
+              <span>View All Tenants</span>
               <span aria-hidden="true">&rarr;</span>
             </Link>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '16px 0 4px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-              <div style={{ backgroundColor: '#eff6ff', padding: '10px 8px', borderRadius: '8px', border: '1px solid #bfdbfe', textAlign: 'center' }}>
-                <span style={{ fontSize: '0.7rem', color: '#1e40af', display: 'block', fontWeight: 600 }}>OCCUPIED</span>
-                <strong style={{ fontSize: '1.25rem', color: '#1d4ed8' }}>{summary.occupied_beds}</strong>
-                <span style={{ fontSize: '0.65rem', color: '#1e40af', display: 'block' }}>Active</span>
-              </div>
-              <div style={{ backgroundColor: '#f0fdf4', padding: '10px 8px', borderRadius: '8px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
-                <span style={{ fontSize: '0.7rem', color: '#166534', display: 'block', fontWeight: 600 }}>AVAILABLE</span>
-                <strong style={{ fontSize: '1.25rem', color: '#15803d' }}>{summary.available_beds}</strong>
-                <span style={{ fontSize: '0.65rem', color: '#166534', display: 'block' }}>Ready</span>
-              </div>
-              <div style={{ backgroundColor: '#faf5ff', padding: '10px 8px', borderRadius: '8px', border: '1px solid #e9d5ff', textAlign: 'center' }}>
-                <span style={{ fontSize: '0.7rem', color: '#7e22ce', display: 'block', fontWeight: 600 }}>RESERVED</span>
-                <strong style={{ fontSize: '1.25rem', color: '#9333ea' }}>{summary.reserved_beds}</strong>
-                <span style={{ fontSize: '0.65rem', color: '#7e22ce', display: 'block' }}>Booked</span>
-              </div>
-              <div style={{ backgroundColor: '#fef2f2', padding: '10px 8px', borderRadius: '8px', border: '1px solid #fecaca', textAlign: 'center' }}>
-                <span style={{ fontSize: '0.7rem', color: '#991b1b', display: 'block', fontWeight: 600 }}>MAINTENANCE</span>
-                <strong style={{ fontSize: '1.25rem', color: '#dc2626' }}>{summary.maintenance_beds}</strong>
-                <span style={{ fontSize: '0.65rem', color: '#991b1b', display: 'block' }}>Repair</span>
+          {/* Full Room Vacancy Alert Banner if detected */}
+          {fullRoomVacancies.length > 0 && (
+            <div className="full-room-vacancy-banner">
+              <span className="banner-icon">🏢</span>
+              <div>
+                <strong>Full Room Vacancy Expected</strong>
+                <p>
+                  {fullRoomVacancies.map((fv) => `${fv.room_number} (${fv.room_type || 'Sharing'}) - available from ${fv.formatted_date || fv.available_from}`).join('; ')}
+                </p>
               </div>
             </div>
+          )}
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8125rem', color: '#475569', paddingTop: '4px' }}>
-              <span>Total Inventory: <strong>{summary.total_beds} Beds in {summary.total_rooms} Rooms</strong></span>
-              <Link to="/owner/rooms" style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
-                View Floor Plans &rarr;
-              </Link>
+          {upcomingVacancies.length === 0 ? (
+            <div className="empty-feed-placeholder">
+              <div className="empty-feed-icon">🛏️</div>
+              <p className="empty-feed-text">No vacancies expected within the next 30 days.</p>
             </div>
+          ) : (
+            <div className="upcoming-feed-list">
+              {upcomingVacancies.slice(0, 5).map((vac, idx) => (
+                <div key={vac.tenant_id || idx} className="upcoming-feed-item">
+                  <div className="upcoming-item-left">
+                    <div className="upcoming-item-title">
+                      <strong>{vac.room}</strong> • <span className="bed-code-tag">{vac.bed}</span>
+                      {vac.is_full_room_vacancy && (
+                        <span className="full-room-chip">Full Room</span>
+                      )}
+                    </div>
+                    <div className="upcoming-item-tenant">
+                      👤 {vac.tenant_name || vac.name}
+                    </div>
+                  </div>
 
-            {propertyOverview.floor_summaries && propertyOverview.floor_summaries.length > 0 && (
-              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-                  Floor Summaries ({propertyOverview.floors_count} Floors)
-                </span>
-                {propertyOverview.floor_summaries.map((fl) => (
-                  <div key={fl.floor_number} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
-                    <span style={{ fontWeight: 600, color: '#1e293b' }}>
-                      {fl.floor_name || `Floor ${fl.floor_number}`} ({fl.rooms_count} Rooms, {fl.beds_count} Beds)
+                  <div className="upcoming-item-right">
+                    <span className="upcoming-date-label">
+                      Available from: <strong>{vac.formatted_move_out_date || vac.move_out_date}</strong>
                     </span>
-                    <span style={{ color: fl.available_beds > 0 ? '#16a34a' : '#64748b', fontWeight: 500 }}>
-                      {fl.occupied_beds}/{fl.beds_count} Occupied ({fl.occupancy_rate}%)
+                    <span className={`days-remaining-pill ${vac.days_remaining <= 7 ? 'urgent' : ''}`}>
+                      {vac.days_remaining === 0 ? 'Today' : `In ${vac.days_remaining} days`}
                     </span>
                   </div>
-                ))}
-              </div>
-            )}
-
-            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Link to="/owner/property" style={{ color: '#2563eb', fontWeight: 600, fontSize: '0.82rem', textDecoration: 'none' }}>
-                🏢 Configure Floors &amp; Property Structure &rarr;
-              </Link>
+                </div>
+              ))}
             </div>
-          </div>
+          )}
         </div>
-      </section>
 
-      {/* ==================================================
-          SECTION 5: TODAY / UPCOMING (SIDE-BY-SIDE)
-      ================================================== */}
-      <section className="dashboard-grid-two-col">
-        {/* Column 1: Upcoming Move-ins / Bookings */}
+        {/* Column 2: Upcoming Move-Ins */}
         <div className="dashboard-sub-card">
           <div className="section-card-header">
             <div>
               <h3 className="section-title">Upcoming Move-Ins</h3>
-              <p className="section-subtitle">Confirmed bookings queued for check-in</p>
+              <p className="section-subtitle">Confirmed bookings queued for resident check-in</p>
             </div>
             <Link to="/owner/bookings" className="view-all-link">
               <span>View Bookings</span>
@@ -494,89 +484,32 @@ export default function OwnerDashboardPage() {
             </Link>
           </div>
 
-          {upcomingBookings.length === 0 ? (
-            <div className="card-empty-state" style={{ minHeight: '130px' }}>
-              <span className="empty-icon">🧳</span>
-              <p className="empty-title">No upcoming move-ins queued</p>
-              <p className="empty-desc">
-                When new bookings are confirmed, scheduled resident admissions will appear here.
-              </p>
+          {upcomingMoveIns.length === 0 ? (
+            <div className="empty-feed-placeholder">
+              <div className="empty-feed-icon">📅</div>
+              <p className="empty-feed-text">No upcoming move-ins scheduled.</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
-              {upcomingBookings.map((b) => (
-                <div
-                  key={b.id || b.booking_id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '10px 14px',
-                    background: '#f8fafc',
-                    borderRadius: '8px',
-                    border: '1px solid #f1f5f9',
-                  }}
-                >
-                  <div>
-                    <strong style={{ fontSize: '0.875rem', color: '#0f172a' }}>{b.tenant_name || b.name}</strong>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>
-                      {b.room_number ? `Room ${b.room_number}` : 'Room assignment pending'}
+            <div className="upcoming-feed-list">
+              {upcomingMoveIns.slice(0, 5).map((book, idx) => (
+                <div key={book.id || idx} className="upcoming-feed-item">
+                  <div className="upcoming-item-left">
+                    <div className="upcoming-item-title">
+                      <strong>{book.guest_name || book.name}</strong>
+                    </div>
+                    <div className="upcoming-item-tenant">
+                      {book.room} • {book.bed}
+                    </div>
+                  </div>
+
+                  <div className="upcoming-item-right">
+                    <span className="upcoming-date-label">
+                      Check-in: <strong>{book.formatted_date || book.move_in_date}</strong>
+                    </span>
+                    <span className="days-remaining-pill">
+                      {book.days_remaining === 0 ? 'Today' : `In ${book.days_remaining} days`}
                     </span>
                   </div>
-                  <span className="stay-days-pill">
-                    {b.check_in_date || b.move_in_date || 'Upcoming'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Column 2: Upcoming Stay End Dates / Dues */}
-        <div className="dashboard-sub-card">
-          <div className="section-card-header">
-            <div>
-              <h3 className="section-title">Upcoming Stay End Dates</h3>
-              <p className="section-subtitle">Tenants with leases ending within 30 days</p>
-            </div>
-            <Link to="/owner/tenants" className="view-all-link">
-              <span>View Tenants</span>
-              <span aria-hidden="true">&rarr;</span>
-            </Link>
-          </div>
-
-          {upcomingStayEnds.length === 0 ? (
-            <div className="card-empty-state" style={{ minHeight: '130px' }}>
-              <span className="empty-icon">📋</span>
-              <p className="empty-title">No immediate stay expirations</p>
-              <p className="empty-desc">
-                Tenants whose stay or notice period concludes within 30 days will be flagged here.
-              </p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
-              {upcomingStayEnds.map((t) => (
-                <div
-                  key={t.id || t.tenant_id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '10px 14px',
-                    background: '#fff1f2',
-                    borderRadius: '8px',
-                    border: '1px solid #fecdd3',
-                  }}
-                >
-                  <div>
-                    <strong style={{ fontSize: '0.875rem', color: '#9f1239' }}>{t.full_name || t.name}</strong>
-                    <span style={{ fontSize: '0.75rem', color: '#be123c', display: 'block' }}>
-                      Room {t.room_number || '-'} • Bed {t.bed_code || '-'}
-                    </span>
-                  </div>
-                  <span className="stay-days-pill urgent">
-                    Ends: {t.stay_end_date || 'Soon'}
-                  </span>
                 </div>
               ))}
             </div>
@@ -585,78 +518,181 @@ export default function OwnerDashboardPage() {
       </section>
 
       {/* ==================================================
-          SECTION 6: RECENT ACTIVITY (TOP 5 ITEMS)
+          SECTION 5: RENT OVERVIEW & VISITORS (TWO COLUMNS)
       ================================================== */}
-      <section className="dashboard-section">
-        <div className="section-card-header">
-          <div>
-            <h3 className="section-title">Recent Activity</h3>
-            <p className="section-subtitle">Latest operations and enquiry events at {hostelName}</p>
+      <section className="dashboard-grid-two-col">
+        {/* Column 1: Rent Overview */}
+        <div className="dashboard-sub-card">
+          <div className="section-card-header">
+            <div>
+              <h3 className="section-title">Rent Overview</h3>
+              <p className="section-subtitle">Financial realization for the current cycle</p>
+            </div>
+            <Link to="/owner/payments" className="view-all-link">
+              <span>Payments Ledger</span>
+              <span aria-hidden="true">&rarr;</span>
+            </Link>
           </div>
-          <Link to="/owner/leads" className="view-all-link">
-            <span>View All Leads &rarr;</span>
-          </Link>
+
+          <div className="rent-kpi-grid">
+            <div className="rent-box">
+              <span className="rent-box-label">Expected Target</span>
+              <span className="rent-box-num">₹{rent.expected.toLocaleString('en-IN')}</span>
+              <span className="rent-box-sub">Monthly target</span>
+            </div>
+            <div className="rent-box highlight-green">
+              <span className="rent-box-label">Collected</span>
+              <span className="rent-box-num">₹{rent.collected.toLocaleString('en-IN')}</span>
+              <span className="rent-box-sub">{rentRealizedPercent}% realized</span>
+            </div>
+            <div className="rent-box highlight-amber">
+              <span className="rent-box-label">Pending</span>
+              <span className="rent-box-num">₹{rent.pending.toLocaleString('en-IN')}</span>
+              <span className="rent-box-sub">Due this cycle</span>
+            </div>
+            <div className="rent-box highlight-red">
+              <span className="rent-box-label">Overdue</span>
+              <span className="rent-box-num">₹{rent.overdue.toLocaleString('en-IN')}</span>
+              <span className="rent-box-sub">Needs follow-up</span>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="rent-progress-block">
+            <div className="rent-progress-labels">
+              <span>Collection Realization</span>
+              <span>{rentRealizedPercent}%</span>
+            </div>
+            <div className="rent-progress-track">
+              <div className="rent-progress-fill" style={{ width: `${rentRealizedPercent}%` }} />
+            </div>
+          </div>
         </div>
 
-        {recentActivity.length === 0 ? (
-          <div className="card-empty-state" style={{ padding: '32px 16px' }}>
-            <span className="empty-icon">⚡</span>
-            <p className="empty-title">No recent activity logged</p>
-            <p className="empty-desc">
-              When enquiries are submitted, payments recorded, or bookings created, live events will show here.
-            </p>
+        {/* Column 2: Visitor Activity */}
+        <div className="dashboard-sub-card">
+          <div className="section-card-header">
+            <div>
+              <h3 className="section-title">Visitor Activity</h3>
+              <p className="section-subtitle">Gate entry logs and visitor passes</p>
+            </div>
+            <Link to="/owner/visitors" className="view-all-link">
+              <span>View Visitor Log</span>
+              <span aria-hidden="true">&rarr;</span>
+            </Link>
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
-            {recentActivity.map((act) => (
-              <div
-                key={act.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '14px',
-                  padding: '12px 16px',
-                  background: '#f8fafc',
-                  borderRadius: '10px',
-                  border: '1px solid #f1f5f9',
-                }}
-              >
-                <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    background: '#eff6ff',
-                    color: '#2563eb',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '1rem',
-                    flexShrink: 0,
-                  }}
-                >
-                  📩
-                </div>
-                <div style={{ flex: 1 }}>
-                  <strong style={{ fontSize: '0.875rem', color: '#0f172a', display: 'block' }}>
-                    {act.text}
-                  </strong>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                    {act.subtext}
-                  </span>
-                </div>
-                {act.created_at && (
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                    {new Date(act.created_at).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </span>
-                )}
-              </div>
-            ))}
+
+          <div className="visitor-stats-grid">
+            <div className="visitor-stat-box">
+              <span className="vis-num">{visitors.today}</span>
+              <span className="vis-label">Today</span>
+            </div>
+            <div className="visitor-stat-box highlight-blue">
+              <span className="vis-num">{visitors.currentlyInside}</span>
+              <span className="vis-label">Currently Inside</span>
+            </div>
+            <div className="visitor-stat-box">
+              <span className="vis-num">{visitors.thisWeek}</span>
+              <span className="vis-label">This Week</span>
+            </div>
+            <div className="visitor-stat-box">
+              <span className="vis-num">{visitors.thisMonth}</span>
+              <span className="vis-label">This Month</span>
+            </div>
           </div>
-        )}
+
+          {/* Active Visitors List (Max 3) */}
+          <div className="active-visitors-sublist">
+            <div className="active-vis-heading">CURRENTLY CHECKED IN</div>
+            {visitors.active && visitors.active.length > 0 ? (
+              visitors.active.slice(0, 3).map((av, idx) => (
+                <div key={av.id || idx} className="active-vis-item">
+                  <div>
+                    <strong>{av.visitor_name}</strong>
+                    <div className="active-vis-sub">
+                      Visiting {av.visiting_tenant || av.tenant_name} • {av.room || av.room_number}
+                    </div>
+                  </div>
+                  <span className="active-vis-time">Checked in {av.checked_in_time}</span>
+                </div>
+              ))
+            ) : (
+              <p className="empty-subtext">No active visitors currently inside property.</p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ==================================================
+          SECTION 6: OPERATIONS & RECENT ACTIVITY (TWO COLUMNS)
+      ================================================== */}
+      <section className="dashboard-grid-two-col">
+        {/* Column 1: Operations (Complaints & Maintenance) */}
+        <div className="dashboard-sub-card">
+          <div className="section-card-header">
+            <div>
+              <h3 className="section-title">Operations</h3>
+              <p className="section-subtitle">Active complaints and hostel facility maintenance</p>
+            </div>
+            <div className="section-header-links">
+              <Link to="/owner/complaints" className="view-all-link">
+                <span>Complaints</span>
+              </Link>
+              <span className="link-divider">•</span>
+              <Link to="/owner/maintenance" className="view-all-link">
+                <span>Maintenance</span>
+              </Link>
+            </div>
+          </div>
+
+          <div className="operations-quad-grid">
+            <div className="ops-quad-item">
+              <span className="ops-quad-num">{complaints.open}</span>
+              <span className="ops-quad-label">Open Complaints</span>
+            </div>
+            <div className={`ops-quad-item ${complaints.highPriority > 0 ? 'highlight-red' : ''}`}>
+              <span className="ops-quad-num">{complaints.highPriority}</span>
+              <span className="ops-quad-label">High Priority</span>
+            </div>
+            <div className="ops-quad-item">
+              <span className="ops-quad-num">{maintenance.inProgress}</span>
+              <span className="ops-quad-label">In Progress</span>
+            </div>
+            <div className={`ops-quad-item ${maintenance.overdue > 0 ? 'highlight-amber' : ''}`}>
+              <span className="ops-quad-num">{maintenance.overdue}</span>
+              <span className="ops-quad-label">Overdue / Urgent</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Column 2: Recent Activity */}
+        <div className="dashboard-sub-card">
+          <div className="section-card-header">
+            <div>
+              <h3 className="section-title">Recent Activity</h3>
+              <p className="section-subtitle">Real-time audit log of operations across hostel</p>
+            </div>
+          </div>
+
+          {recentActivity.length === 0 ? (
+            <div className="empty-feed-placeholder">
+              <div className="empty-feed-icon">📝</div>
+              <p className="empty-feed-text">No recent activity recorded.</p>
+            </div>
+          ) : (
+            <div className="activity-feed-list">
+              {recentActivity.slice(0, 6).map((item, idx) => (
+                <div key={item.id || idx} className="activity-feed-item">
+                  <div className="activity-icon-badge">{item.icon || '📌'}</div>
+                  <div className="activity-body">
+                    <span className="activity-main-text">{item.text}</span>
+                    {item.subtext && <span className="activity-sub-text">{item.subtext}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
     </div>
   )

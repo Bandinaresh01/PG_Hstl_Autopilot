@@ -247,34 +247,92 @@ class TenantService:
 
         today = date.today()
         upcoming_cutoff = today + timedelta(days=30)
-        upcoming_move_outs = []
+        upcoming_vacancies = []
+
+        # Map active tenants by room to detect full room vacancies
+        tenants_by_room = {}
+        for t in tenants:
+            st = str(t.get("status", "")).upper()
+            if st in ("ACTIVE", "NOTICE_PERIOD"):
+                r_id = str(t.get("room_id") or "")
+                if r_id:
+                    tenants_by_room.setdefault(r_id, []).append(t)
 
         for t in tenants:
-            if str(t.get("status", "")).upper() in ("ACTIVE", "NOTICE_PERIOD") and t.get("expected_end_date"):
+            st = str(t.get("status", "")).upper()
+            if st in ("ACTIVE", "NOTICE_PERIOD") and t.get("expected_end_date"):
                 try:
-                    end_d = datetime.strptime(str(t["expected_end_date"]).split("T")[0], "%Y-%m-%d").date()
+                    raw_date_str = str(t["expected_end_date"]).split("T")[0]
+                    end_d = datetime.strptime(raw_date_str, "%Y-%m-%d").date()
                     if today <= end_d <= upcoming_cutoff:
                         days_left = (end_d - today).days
-                        upcoming_move_outs.append({
+                        r_id = str(t.get("room_id") or "")
+                        room_tenants = tenants_by_room.get(r_id, [])
+                        # A room is full room vacancy if all its occupied beds have move-out dates <= upcoming_cutoff
+                        is_full_room = False
+                        if room_tenants and len(room_tenants) >= 1:
+                            all_moving_out = all(
+                                bool(rt.get("expected_end_date")) and 
+                                today <= datetime.strptime(str(rt["expected_end_date"]).split("T")[0], "%Y-%m-%d").date() <= upcoming_cutoff
+                                for rt in room_tenants
+                            )
+                            is_full_room = all_moving_out
+
+                        # Pretty date formatting
+                        pretty_date = end_d.strftime("%b %d, %Y")
+
+                        r_num = str(t.get("room_number") or "-")
+                        if not r_num.startswith("Room ") and r_num != "-":
+                            r_num_display = f"Room {r_num}"
+                        else:
+                            r_num_display = r_num
+
+                        upcoming_vacancies.append({
                             "tenant_id": t.get("id"),
                             "tenant_code": t.get("tenant_code"),
                             "name": t.get("full_name"),
-                            "room": t.get("room_number", "-"),
-                            "bed": t.get("bed_code", "-"),
-                            "move_out_date": str(t["expected_end_date"]),
+                            "tenant_name": t.get("full_name"),
+                            "room_id": t.get("room_id"),
+                            "room": r_num_display,
+                            "room_number": r_num_display,
+                            "bed_id": t.get("bed_id"),
+                            "bed": t.get("bed_code") or "Bed",
+                            "bed_code": t.get("bed_code") or "Bed",
+                            "move_out_date": raw_date_str,
+                            "expected_move_out_date": raw_date_str,
+                            "formatted_move_out_date": pretty_date,
                             "days_remaining": days_left,
+                            "is_full_room_vacancy": is_full_room,
+                            "room_type": t.get("room_type") or "Sharing",
                         })
-                except Exception:
-                    pass
+                except Exception as ex:
+                    logger.debug(f"Error parsing expected_end_date for tenant {t.get('id')}: {ex}")
 
-        upcoming_move_outs.sort(key=lambda x: x["days_remaining"])
+        upcoming_vacancies.sort(key=lambda x: x["days_remaining"])
+
+        # Compile distinct full room vacancy notices
+        full_room_notices = []
+        seen_rooms = set()
+        for v in upcoming_vacancies:
+            if v.get("is_full_room_vacancy") and v.get("room_id") not in seen_rooms:
+                seen_rooms.add(v.get("room_id"))
+                full_room_notices.append({
+                    "room_id": v.get("room_id"),
+                    "room_number": v.get("room_number"),
+                    "room_type": v.get("room_type"),
+                    "available_from": v.get("expected_move_out_date"),
+                    "formatted_date": v.get("formatted_move_out_date"),
+                    "days_remaining": v.get("days_remaining"),
+                })
 
         return {
             "total_tenants": total_tenants,
             "active_tenants": active_tenants,
             "notice_tenants": notice_tenants,
-            "upcoming_stay_end_dates_count": len(upcoming_move_outs),
-            "upcoming_stay_end_dates": upcoming_move_outs,
+            "upcoming_stay_end_dates_count": len(upcoming_vacancies),
+            "upcoming_stay_end_dates": upcoming_vacancies,
+            "upcoming_vacancies": upcoming_vacancies,
+            "full_room_vacancies": full_room_notices,
         }
 
 

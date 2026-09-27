@@ -304,6 +304,25 @@ class RoomService:
                 floor_num = r.get("floor") if r.get("floor") is not None else 1
                 floor_name = self._default_floor_name(floor_num)
 
+                # Room Occupancy Classification derived from usable beds:
+                # FULLY_OCCUPIED: available usable beds = 0 and at least one occupied/reserved bed
+                # PARTIALLY_OCCUPIED: some beds occupied/reserved and some beds available
+                # VACANT: all usable beds available and no occupied/reserved beds
+                # MAINTENANCE: room.status = MAINTENANCE
+                r_status = str(r.get("status", "")).upper()
+                if r_status in ("MAINTENANCE", "UNAVAILABLE"):
+                    occupancy_class = "MAINTENANCE"
+                else:
+                    occupied_or_reserved = occupied + reserved
+                    if available == 0 and occupied_or_reserved > 0:
+                        occupancy_class = "FULLY_OCCUPIED"
+                    elif occupied_or_reserved > 0 and available > 0:
+                        occupancy_class = "PARTIALLY_OCCUPIED"
+                    elif available > 0 and occupied_or_reserved == 0:
+                        occupancy_class = "VACANT"
+                    else:
+                        occupancy_class = "MAINTENANCE" if (total_beds > 0 and maintenance == total_beds) else "VACANT"
+
                 room_copy = dict(r)
                 room_copy["floor_name"] = floor_name
                 room_copy["beds"] = room_beds
@@ -313,6 +332,7 @@ class RoomService:
                 room_copy["reserved_beds"] = reserved
                 room_copy["maintenance_beds"] = maintenance
                 room_copy["occupancy_rate"] = round((occupied / total_beds * 100), 1) if total_beds > 0 else 0.0
+                room_copy["occupancy_classification"] = occupancy_class
 
                 result.append(room_copy)
 
@@ -746,14 +766,20 @@ class RoomService:
         available_beds = sum(r.get("available_beds", 0) for r in rooms)
         reserved_beds = sum(r.get("reserved_beds", 0) for r in rooms)
         maintenance_beds = sum(r.get("maintenance_beds", 0) for r in rooms)
-        occupancy_rate = round((occupied_beds / total_beds * 100), 1) if total_beds > 0 else 0.0
+        occupancy_rate = round((occupied_beds / total_beds * 100), 2) if total_beds > 0 else 0.0
+
+        # Room occupancy classification counts derived strictly from usable beds
+        rooms_fully_occupied = sum(1 for r in rooms if r.get("occupancy_classification") == "FULLY_OCCUPIED")
+        rooms_partially_occupied = sum(1 for r in rooms if r.get("occupancy_classification") == "PARTIALLY_OCCUPIED")
+        rooms_vacant = sum(1 for r in rooms if r.get("occupancy_classification") == "VACANT")
+        rooms_maintenance = sum(1 for r in rooms if r.get("occupancy_classification") == "MAINTENANCE")
 
         floor_summaries = []
         for f in floors:
             floor_summaries.append({
                 "id": f.get("id"),
                 "floor_number": f.get("floor_number"),
-                "floor_name": f.get("floor_name"),
+                "floor_name": f.get("floor_name") or f"Floor {f.get('floor_number')}",
                 "rooms_count": f.get("rooms_count", 0),
                 "total_beds": f.get("total_beds", 0),
                 "occupied_beds": f.get("occupied_beds", 0),
@@ -764,15 +790,33 @@ class RoomService:
             })
 
         return {
+            "floors": total_floors,
             "floors_count": total_floors,
+            "rooms": total_rooms,
             "rooms_count": total_rooms,
+            "beds": total_beds,
             "beds_count": total_beds,
+            "roomsFullyOccupied": rooms_fully_occupied,
+            "rooms_fully_occupied": rooms_fully_occupied,
+            "roomsPartiallyOccupied": rooms_partially_occupied,
+            "rooms_partially_occupied": rooms_partially_occupied,
+            "roomsVacant": rooms_vacant,
+            "rooms_vacant": rooms_vacant,
+            "roomsMaintenance": rooms_maintenance,
+            "rooms_maintenance": rooms_maintenance,
+            "bedsOccupied": occupied_beds,
             "occupied_beds": occupied_beds,
+            "bedsAvailable": available_beds,
             "available_beds": available_beds,
+            "bedsReserved": reserved_beds,
             "reserved_beds": reserved_beds,
             "maintenance_beds": maintenance_beds,
+            "occupancyRate": occupancy_rate,
             "occupancy_rate": occupancy_rate,
-            "floors": floor_summaries,
+            "floorSummary": floor_summaries,
+            "floor_summaries": floor_summaries,
+            "floors_list": floor_summaries,
+            "rooms_list": rooms,
         }
 
     def get_stats(self, hostel_id: str) -> dict:
@@ -787,7 +831,11 @@ class RoomService:
             "maintenance_beds": summary["maintenance_beds"],
             "occupancy_rate": summary["occupancy_rate"],
             "floors_count": summary["floors_count"],
-            "floors": summary["floors"],
+            "floors": summary["floorSummary"],
+            "roomsFullyOccupied": summary["roomsFullyOccupied"],
+            "roomsPartiallyOccupied": summary["roomsPartiallyOccupied"],
+            "roomsVacant": summary["roomsVacant"],
+            "roomsMaintenance": summary["roomsMaintenance"],
         }
 
 
