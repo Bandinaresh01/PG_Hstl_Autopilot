@@ -52,6 +52,18 @@ export default function ContactCTA() {
               </svg>
               <span>Call {contactInfo.phone}</span>
             </a>
+
+            <a
+              href="/enquiry"
+              className="btn-call-cta"
+              style={{ background: '#0f172a', color: '#ffffff', borderColor: '#0f172a' }}
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect width="20" height="16" x="2" y="4" rx="2" />
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+              </svg>
+              <span>Submit Room Enquiry</span>
+            </a>
           </div>
         </div>
       </div>

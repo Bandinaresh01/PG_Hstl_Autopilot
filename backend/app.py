@@ -2562,10 +2562,118 @@ def delete_owner_announcement(announcement_id):
         logger.error(f"Error deleting announcement {announcement_id}: {e}")
         return jsonify({"error": f"Failed to delete announcement: {str(e)}"}), 500
 
+# ============================================================================
+# 5B. OWNER ENQUIRIES / LEADS ENDPOINTS
+# ============================================================================
 
-# ============================================================================
-# 6. PUBLIC ENQUIRY SUBMISSION ENDPOINT (POST /api/enquiries)
-# ============================================================================
+@app.route("/api/owner/enquiries", methods=["GET"])
+@owner_required
+def get_owner_enquiries():
+    """List all prospective tenant enquiries/leads with real-time status filtering and search."""
+    try:
+        db = get_db_client()
+        status_filter = (request.args.get("status") or "ALL").strip().upper()
+        search_query = (request.args.get("search") or "").strip().lower()
+
+        res = (
+            db.table("enquiries")
+            .select("*")
+            .order("created_at", desc=True)
+            .execute()
+        )
+        raw_enquiries = res.data or []
+        parsed = [parse_enquiry_row(r) for r in raw_enquiries]
+
+        # Aggregate counts across all enquiries
+        counts = {
+            "all": len(parsed),
+            "new": 0,
+            "interested": 0,
+            "visit_scheduled": 0,
+            "booked": 0,
+            "closed": 0,
+        }
+        for item in parsed:
+            st = (item.get("status") or "NEW").upper()
+            if st == "INTERESTED":
+                counts["interested"] += 1
+            elif st in ("VISIT_SCHEDULED", "VISIT SCHEDULED"):
+                counts["visit_scheduled"] += 1
+            elif st == "BOOKED":
+                counts["booked"] += 1
+            elif st == "CLOSED":
+                counts["closed"] += 1
+            else:
+                counts["new"] += 1
+
+        # Apply status filter
+        filtered = parsed
+        if status_filter != "ALL":
+            if status_filter in ("VISIT_SCHEDULED", "VISIT SCHEDULED"):
+                filtered = [i for i in filtered if i.get("status") in ("VISIT_SCHEDULED", "VISIT SCHEDULED")]
+            else:
+                filtered = [i for i in filtered if i.get("status") == status_filter]
+
+        # Apply search filter
+        if search_query:
+            filtered = [
+                i for i in filtered
+                if search_query in (i.get("name") or "").lower()
+                or search_query in (i.get("phone") or "").lower()
+                or search_query in (i.get("email") or "").lower()
+                or search_query in (i.get("preferred_room") or "").lower()
+                or search_query in (i.get("message") or "").lower()
+            ]
+
+        return jsonify({
+            "enquiries": filtered,
+            "counts": counts,
+            "total": len(parsed),
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error fetching owner enquiries: {e}")
+        return jsonify({"error": f"Failed to retrieve enquiries: {str(e)}"}), 500
+
+
+@app.route("/api/owner/enquiries/<enquiry_id>/status", methods=["PATCH"])
+@owner_required
+def update_owner_enquiry_status(enquiry_id):
+    """Update the pipeline status of an enquiry (NEW, INTERESTED, VISIT_SCHEDULED, BOOKED, CLOSED)."""
+    try:
+        payload = request.get_json(silent=True) or {}
+        new_status = (payload.get("status") or "").strip().upper()
+
+        valid_statuses = {"NEW", "INTERESTED", "VISIT_SCHEDULED", "BOOKED", "CLOSED"}
+        if new_status not in valid_statuses:
+            return jsonify({
+                "error": f"Invalid status '{new_status}'. Allowed: {', '.join(sorted(valid_statuses))}"
+            }), 400
+
+        db = get_db_client()
+        update_data = {
+            "status": new_status,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        res = db.table("enquiries").update(update_data).eq("id", enquiry_id).execute()
+        if not res.data:
+            return jsonify({"error": "Enquiry not found or update returned empty."}), 404
+
+        updated_row = parse_enquiry_row(res.data[0])
+        logger.info(f"Enquiry {enquiry_id} status updated to {new_status}")
+        return jsonify({
+            "success": True,
+            "message": f"Enquiry status updated to {new_status}",
+            "enquiry": updated_row,
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error updating enquiry {enquiry_id} status: {e}")
+        return jsonify({"error": f"Failed to update enquiry status: {str(e)}"}), 500
+
+
+
 
 @app.route("/api/enquiries", methods=["POST"])
 def create_enquiry():

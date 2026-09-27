@@ -654,3 +654,109 @@ export async function updateOwnerBookingStatus(bookingId, bookingStatus, payment
   return data
 }
 
+/**
+ * Fetch all prospective tenant enquiries / leads from Supabase
+ */
+export async function fetchOwnerEnquiries(status = 'ALL', search = '') {
+  const params = new URLSearchParams()
+  if (status && status !== 'ALL') params.append('status', status)
+  if (search && search.trim()) params.append('search', search.trim())
+
+  const queryString = params.toString() ? `?${params.toString()}` : ''
+  const response = await fetch(`${API_BASE_URL}/api/owner/enquiries${queryString}`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch enquiries.')
+  }
+  return data
+}
+
+/**
+ * Update enquiry pipeline status (NEW, INTERESTED, VISIT_SCHEDULED, BOOKED, CLOSED)
+ */
+export async function updateOwnerEnquiryStatus(enquiryId, status) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/enquiries/${enquiryId}/status`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ status }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update enquiry status.')
+  }
+  return data
+}
+
+/**
+ * Fetch owner announcements
+ */
+export async function fetchOwnerAnnouncements(status = 'ALL') {
+  const params = status && status !== 'ALL' ? `?status=${encodeURIComponent(status)}` : ''
+  const response = await fetch(`${API_BASE_URL}/api/owner/announcements${params}`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch announcements.')
+  }
+  return data
+}
+
+/**
+ * Create announcement
+ */
+export async function createOwnerAnnouncement(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/announcements`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to create announcement.')
+  }
+  return data
+}
+
+/**
+ * Update announcement
+ */
+export async function updateOwnerAnnouncement(announcementId, payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/announcements/${announcementId}`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update announcement.')
+  }
+  return data
+}
+
+/**
+ * Delete announcement
+ */
+export async function deleteOwnerAnnouncement(announcementId) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/announcements/${announcementId}`, {
+    method: 'DELETE',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to delete announcement.')
+  }
+  return data
+}
+
+
