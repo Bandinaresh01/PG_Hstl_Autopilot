@@ -992,28 +992,617 @@
 }
 
 /* ==================================================
+   NEW SYSTEMATIC DASHBOARD HIERARCHY STYLES
+================================================== */
+
+.occupancy-section {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.section-header-links {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.link-divider {
+  color: #cbd5e1;
+  font-size: 0.8rem;
+}
+
+/* Occupancy KPI Strip */
+.occupancy-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #f1f5f9;
+}
+
+.occ-kpi-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.occ-kpi-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.occ-kpi-num {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+}
+
+.occ-kpi-sub {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.occ-highlight-blue .occ-kpi-num {
+  color: #2563eb;
+}
+
+.occ-highlight-green .occ-kpi-num {
+  color: #16a34a;
+}
+
+.occ-highlight-purple .occ-kpi-num {
+  color: #7c3aed;
+}
+
+/* Room Classification Grid */
+.room-classification-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.room-class-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem 1.15rem;
+  transition: all 0.15s ease;
+}
+
+.room-class-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.room-class-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.room-class-count {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.room-class-desc {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.room-class-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.badge-full {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.badge-partial {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.badge-vacant {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.badge-maint {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* Floor Breakdown Strip */
+.floor-summary-breakdown {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+}
+
+.floor-breakdown-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin-bottom: 0.75rem;
+}
+
+.floor-cards-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.floor-mini-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  transition: all 0.15s ease;
+  color: inherit;
+}
+
+.floor-mini-card:hover {
+  background: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+}
+
+.floor-mini-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.25rem;
+}
+
+.floor-mini-stats {
+  font-size: 0.75rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.floor-mini-pills {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.pill-occ {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #1d4ed8;
+  background: #eff6ff;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+.pill-avail {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #15803d;
+  background: #dcfce7;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+/* Full Room Vacancy Alert */
+.full-room-vacancy-banner {
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-left: 4px solid #f59e0b;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  font-size: 0.82rem;
+  color: #92400e;
+  margin-bottom: 1rem;
+}
+
+.full-room-vacancy-banner p {
+  margin: 0.2rem 0 0 0;
+  font-size: 0.78rem;
+}
+
+.banner-icon {
+  font-size: 1.25rem;
+}
+
+/* Upcoming Feed List */
+.upcoming-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.upcoming-feed-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0.9rem;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  gap: 0.75rem;
+  transition: background 0.15s ease;
+}
+
+.upcoming-feed-item:hover {
+  background: #f1f5f9;
+}
+
+.upcoming-item-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.upcoming-item-title {
+  font-size: 0.88rem;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.bed-code-tag {
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+}
+
+.full-room-chip {
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+.upcoming-item-tenant {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.upcoming-item-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.upcoming-date-label {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.days-remaining-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #eff6ff;
+  color: #2563eb;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+
+.days-remaining-pill.urgent {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Rent Overview Grid */
+.rent-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.rent-box {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.rent-box-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.rent-box-num {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.rent-box-sub {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.rent-box.highlight-green .rent-box-num {
+  color: #16a34a;
+}
+
+.rent-box.highlight-amber .rent-box-num {
+  color: #b45309;
+}
+
+.rent-box.highlight-red .rent-box-num {
+  color: #dc2626;
+}
+
+.rent-progress-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.rent-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.rent-progress-track {
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.rent-progress-fill {
+  height: 100%;
+  background: #16a34a;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+/* Visitor Activity Grid */
+.visitor-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.visitor-stat-box {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  padding: 0.65rem 0.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.visitor-stat-box.highlight-blue {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.visitor-stat-box.highlight-blue .vis-num {
+  color: #2563eb;
+}
+
+.vis-num {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+}
+
+.vis-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+/* Active Visitors Sublist */
+.active-visitors-sublist {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 0.75rem;
+}
+
+.active-vis-heading {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin-bottom: 0.5rem;
+}
+
+.active-vis-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.65rem;
+  background: #f8fafc;
+  border-radius: 6px;
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
+}
+
+.active-vis-sub {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.active-vis-time {
+  font-size: 0.72rem;
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.empty-subtext {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin: 0.35rem 0 0;
+}
+
+/* Operations Quad Grid */
+.operations-quad-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.ops-quad-item {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ops-quad-num {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.ops-quad-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.ops-quad-item.highlight-red .ops-quad-num {
+  color: #dc2626;
+}
+
+.ops-quad-item.highlight-amber .ops-quad-num {
+  color: #b45309;
+}
+
+/* Activity Feed List */
+.activity-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.activity-feed-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.activity-feed-item:hover {
+  background: #f8fafc;
+}
+
+.activity-icon-badge {
+  font-size: 1.1rem;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.activity-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.activity-main-text {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.activity-sub-text {
+  font-size: 0.74rem;
+  color: #64748b;
+}
+
+/* Empty State Placeholders */
+.empty-feed-placeholder {
+  text-align: center;
+  padding: 1.75rem 1rem;
+  color: #94a3b8;
+}
+
+.empty-feed-icon {
+  font-size: 1.8rem;
+  margin-bottom: 0.4rem;
+}
+
+.empty-feed-text {
+  font-size: 0.82rem;
+  margin: 0;
+  color: #64748b;
+}
+
+/* ==================================================
    RESPONSIVE BREAKPOINTS
 ================================================== */
 @media (max-width: 1200px) {
-  .charts-three-col-grid {
+  .dashboard-grid-two-col {
     grid-template-columns: 1fr;
-  }
-
-  .kpi-primary-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .kpi-business-grid {
-    grid-template-columns: repeat(3, 1fr);
   }
 }
 
 @media (max-width: 900px) {
-  .dashboard-two-col-grid {
-    grid-template-columns: 1fr;
+  .occupancy-kpi-strip {
+    grid-template-columns: repeat(2, 1fr);
   }
 
-  .kpi-business-grid {
+  .room-classification-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .visitor-stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
@@ -1028,15 +1617,24 @@
     width: 100%;
   }
 
-  .kpi-primary-grid {
+  .occupancy-kpi-strip {
     grid-template-columns: 1fr;
   }
 
-  .kpi-business-grid {
+  .room-classification-grid {
     grid-template-columns: 1fr;
   }
 
-  .financial-comparison-grid {
+  .rent-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .visitor-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .operations-quad-grid {
     grid-template-columns: 1fr;
   }
 }
+

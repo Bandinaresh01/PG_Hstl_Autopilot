@@ -2,8 +2,8 @@ import React from 'react'
 import Hero from '../components/Hero'
 import HostelOverview from '../components/HostelOverview'
 import Rooms from '../components/Rooms'
-import FoodDining from '../components/FoodDining'
-import Facilities from '../components/Facilities'
+import HomeFacilitiesPreview from '../components/HomeFacilitiesPreview'
+import HomeWhyChoose from '../components/HomeWhyChoose'
 import Gallery from '../components/Gallery'
 import Location from '../components/Location'
 import ContactCTA from '../components/ContactCTA'
@@ -12,28 +12,28 @@ import './Pages.css'
 const HomePage = () => {
   return (
     <div className="home-page">
-      {/* 1. Improved Hero Section */}
+      {/* 1. Hero Section: Headline, Location Badge, Primary CTAs */}
       <Hero />
 
-      {/* 2. Hostel Overview */}
+      {/* 2. Hostel Overview: About UrbanNest, Key Highlights & Stats */}
       <HostelOverview />
 
-      {/* 3. Rooms Preview */}
+      {/* 3. Room Types Preview: Single, Double & Triple Sharing Cards */}
       <Rooms preview={true} />
 
-      {/* 4. Food & Dining Section (Homely Food, Every Day) */}
-      <FoodDining />
+      {/* 4. Facilities & Dining Preview: 6 Curated Amenities & Meals Highlight */}
+      <HomeFacilitiesPreview />
 
-      {/* 5. Facilities Preview + Why Choose UrbanNest */}
-      <Facilities preview={true} />
+      {/* 5. Value Proposition: 4 Core Why Choose UrbanNest Pillars */}
+      <HomeWhyChoose />
 
-      {/* 6. Gallery Preview (Building, Bedroom, Dining, Study) */}
+      {/* 6. Gallery Preview: 4 Curated Photo Cards with Lightbox */}
       <Gallery preview={true} />
 
-      {/* 7. Location Preview */}
+      {/* 7. Location Preview: Hyderabad Hub Proximity & Interactive Map */}
       <Location preview={true} />
 
-      {/* 8. Redesigned Wide Instant Contact CTA */}
+      {/* 8. Direct Contact & Enquiry CTA Banner */}
       <ContactCTA />
     </div>
   )

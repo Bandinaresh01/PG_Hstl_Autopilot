@@ -1,0 +1,73 @@
+/* ============================================================================
+   UrbanNest Owner Maintenance Management Styles
+============================================================================ */
+
+.owner-maintenance-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.maintenance-source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.maintenance-source-badge.complaint {
+  background-color: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
+.maintenance-source-badge.direct {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.badge-m-status {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.badge-m-status.open {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.badge-m-status.scheduled {
+  background-color: #faf5ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
+}
+
+.badge-m-status.in_progress,
+.badge-m-status.in-progress {
+  background-color: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
+.badge-m-status.completed {
+  background-color: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.badge-m-status.cancelled {
+  background-color: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}

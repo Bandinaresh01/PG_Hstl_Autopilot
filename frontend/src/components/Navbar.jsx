@@ -83,6 +83,15 @@ export default function Navbar() {
 
         {/* Right: Desktop Action CTAs */}
         <div className="navbar-actions">
+          <Link
+            to="/tenant/login"
+            className="action-btn btn-tenant"
+            onClick={handleNavClick}
+            title="Tenant Resident Portal"
+          >
+            <span style={{ marginRight: '4px' }}>🏡</span>
+            <span>Tenant Portal</span>
+          </Link>
           <a
             href={contactInfo.whatsappUrl}
             target="_blank"
@@ -177,6 +186,22 @@ export default function Navbar() {
         </nav>
 
         <div className="mobile-actions">
+          <Link
+            to="/tenant/login"
+            className="mobile-action-btn mobile-btn-tenant"
+            onClick={handleNavClick}
+          >
+            <span>🏡</span>
+            <span>Tenant Portal Login</span>
+          </Link>
+          <Link
+            to="/owner/login"
+            className="mobile-action-btn mobile-btn-owner"
+            onClick={handleNavClick}
+          >
+            <span>🔐</span>
+            <span>Owner CRM Portal</span>
+          </Link>
           <a
             href={contactInfo.whatsappUrl}
             target="_blank"

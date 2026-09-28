@@ -1,0 +1,193 @@
+/* ==================================================
+   Tenant Portal Layout Styles
+   UrbanNest Hostel Operations CRM
+================================================== */
+
+.tenant-portal-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-family: inherit;
+}
+
+/* Header */
+.tenant-header {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.tenant-header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  height: 64px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tenant-brand-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tenant-brand-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background-color: #10b981;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+}
+
+.tenant-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.tenant-brand-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.tenant-portal-tag {
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: #10b981;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* Right side resident badge */
+.tenant-user-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.tenant-room-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.tenant-profile-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tenant-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+  font-size: 0.825rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #bfdbfe;
+}
+
+.tenant-name-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.tenant-name-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.tenant-code-sub {
+  font-size: 0.725rem;
+  color: #64748b;
+}
+
+.tenant-btn-logout {
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tenant-btn-logout:hover {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+/* Navigation bar */
+.tenant-nav-bar {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tenant-nav-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+}
+
+.tenant-nav-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.tenant-nav-tab:hover {
+  color: #0f172a;
+}
+
+.tenant-nav-tab.active {
+  color: #10b981;
+  border-bottom-color: #10b981;
+}
+
+/* Main Content Area */
+.tenant-main-content {
+  flex: 1;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 28px 20px 60px;
+}

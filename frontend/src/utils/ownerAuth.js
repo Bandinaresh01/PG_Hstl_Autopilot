@@ -22,15 +22,17 @@ const TOKEN_STORAGE_KEY = 'urbannest_owner_access_token'
 
 export function getStoredAccessToken() {
   if (typeof window === 'undefined') return ''
-  return sessionStorage.getItem(TOKEN_STORAGE_KEY) || ''
+  return sessionStorage.getItem(TOKEN_STORAGE_KEY) || localStorage.getItem(TOKEN_STORAGE_KEY) || ''
 }
 
 export function setStoredAccessToken(token) {
   if (typeof window === 'undefined') return
   if (token) {
     sessionStorage.setItem(TOKEN_STORAGE_KEY, token)
+    localStorage.setItem(TOKEN_STORAGE_KEY, token)
   } else {
     sessionStorage.removeItem(TOKEN_STORAGE_KEY)
+    localStorage.removeItem(TOKEN_STORAGE_KEY)
   }
 }
 
@@ -136,3 +138,720 @@ export async function fetchOwnerDashboard() {
 
   return data
 }
+
+/**
+ * Owner-only action: create a Supabase Auth login account for an approved tenant
+ * via POST /api/owner/tenants/:tenantId/create-account
+ */
+export async function createTenantAccount(tenantId, payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/tenants/${tenantId}/create-account`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to create tenant account.')
+  }
+
+  return data
+}
+
+/**
+ * Fetch all payments for owner's hostel via GET /api/owner/payments
+ */
+export async function fetchOwnerPayments(statusFilter = 'ALL', searchQuery = '', tenantId = '') {
+  const params = new URLSearchParams()
+  if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter)
+  if (searchQuery) params.append('search', searchQuery)
+  if (tenantId) params.append('tenant_id', tenantId)
+
+  const url = `${API_BASE_URL}/api/owner/payments${params.toString() ? `?${params.toString()}` : ''}`
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve owner payments.')
+  }
+  return data
+}
+
+/**
+ * Record or update a payment/charge via POST /api/owner/payments
+ */
+export async function recordOwnerPayment(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/payments`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to record payment.')
+  }
+  return data
+}
+
+/**
+ * Get single payment details via GET /api/owner/payments/:paymentId
+ */
+export async function fetchOwnerSinglePayment(paymentId) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/payments/${paymentId}`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve payment details.')
+  }
+  return data
+}
+
+/**
+ * Fetch complaints for owner's hostel via GET /api/owner/complaints
+ */
+export async function fetchOwnerComplaints(statusFilter = 'ALL', priorityFilter = 'ALL', searchQuery = '') {
+  const params = new URLSearchParams()
+  if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter)
+  if (priorityFilter && priorityFilter !== 'ALL') params.append('priority', priorityFilter)
+  if (searchQuery) params.append('search', searchQuery)
+
+  const url = `${API_BASE_URL}/api/owner/complaints${params.toString() ? `?${params.toString()}` : ''}`
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve complaints.')
+  }
+  return data
+}
+
+/**
+ * Fetch a single complaint detail for owner via GET /api/owner/complaints/:complaintId
+ */
+export async function fetchOwnerSingleComplaint(complaintId) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/complaints/${complaintId}`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve complaint detail.')
+  }
+  return data
+}
+
+/**
+ * Update complaint by owner via PATCH /api/owner/complaints/:complaintId
+ */
+export async function updateOwnerComplaint(complaintId, payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/complaints/${complaintId}`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update complaint.')
+  }
+  return data
+}
+
+/**
+ * Fetch all maintenance tasks for owner via GET /api/owner/maintenance
+ */
+export async function fetchOwnerMaintenance(statusFilter = 'ALL', priorityFilter = 'ALL', searchQuery = '') {
+  const params = new URLSearchParams()
+  if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter)
+  if (priorityFilter && priorityFilter !== 'ALL') params.append('priority', priorityFilter)
+  if (searchQuery) params.append('search', searchQuery)
+
+  const url = `${API_BASE_URL}/api/owner/maintenance${params.toString() ? `?${params.toString()}` : ''}`
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve maintenance tasks.')
+  }
+  return data
+}
+
+/**
+ * Create a new maintenance task via POST /api/owner/maintenance
+ */
+export async function createOwnerMaintenanceTask(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/maintenance`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to create maintenance task.')
+  }
+  return data
+}
+
+/**
+ * Update a maintenance task via PATCH /api/owner/maintenance/:taskId
+ */
+export async function updateOwnerMaintenanceTask(taskId, payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/maintenance/${taskId}`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update maintenance task.')
+  }
+  return data
+}
+
+/**
+ * Fetch a single maintenance task by ID via GET /api/owner/maintenance/:taskId
+ */
+export async function fetchOwnerSingleMaintenance(taskId) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/maintenance/${taskId}`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve maintenance task.')
+  }
+  return data
+}
+
+/**
+ * ============================================================================
+ * OWNER VISITOR LOGS & GATE SECURITY HELPERS
+ * ============================================================================
+ */
+
+/**
+ * Fetch all visitor records with filters (status, date, search)
+ */
+export async function fetchOwnerVisitors(statusFilter = 'ALL', dateFilter = 'ALL', searchQuery = '') {
+  const params = new URLSearchParams()
+  if (statusFilter && statusFilter !== 'ALL') params.append('status', statusFilter)
+  if (dateFilter && dateFilter !== 'ALL') params.append('date', dateFilter)
+  if (searchQuery) params.append('search', searchQuery)
+
+  const url = `${API_BASE_URL}/api/owner/visitors${params.toString() ? `?${params.toString()}` : ''}`
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve visitor logs.')
+  }
+  return data
+}
+
+/**
+ * Fetch a single visitor log by ID
+ */
+export async function fetchOwnerSingleVisitor(visitorId) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/visitors/${visitorId}`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to retrieve visitor details.')
+  }
+  return data
+}
+
+/**
+ * Approve a visitor pass request and issue pass code
+ */
+export async function approveOwnerVisitor(visitorId, payload = {}) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/visitors/${visitorId}/approve`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to approve visitor.')
+  }
+  return data
+}
+
+/**
+ * Reject a visitor pass request with reason
+ */
+export async function rejectOwnerVisitor(visitorId, payload = {}) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/visitors/${visitorId}/reject`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to reject visitor.')
+  }
+  return data
+}
+
+/**
+ * Record visitor entry / check-in at gate/reception
+ */
+export async function checkInOwnerVisitor(visitorId, payload = {}) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/visitors/${visitorId}/check-in`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to check in visitor.')
+  }
+  return data
+}
+
+/**
+ * Record visitor exit / check-out at gate/reception
+ */
+export async function checkOutOwnerVisitor(visitorId, payload = {}) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/visitors/${visitorId}/check-out`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to check out visitor.')
+  }
+  return data
+}
+
+/**
+ * Register an instant walk-in visitor at reception
+ */
+export async function createOwnerWalkInVisitor(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/visitors/walk-in`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to register walk-in visitor.')
+  }
+  return data
+}
+
+// ============================================================================
+// PROPERTY & FLOORS CLIENT METHODS
+// ============================================================================
+
+export async function fetchOwnerProperty() {
+  const response = await fetch(`${API_BASE_URL}/api/owner/property`, {
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch property configuration.')
+  }
+  return data
+}
+
+export async function fetchOwnerFloors() {
+  const response = await fetch(`${API_BASE_URL}/api/owner/floors`, {
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch floors.')
+  }
+  return data
+}
+
+export async function createOwnerFloor(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/floors`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to create floor.')
+  }
+  return data
+}
+
+export async function updateOwnerFloor(floorId, payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/floors/${floorId}`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update floor.')
+  }
+  return data
+}
+
+// ============================================================================
+// ROOMS & BEDS CLIENT METHODS
+// ============================================================================
+
+export async function fetchOwnerRooms(floorId = '') {
+  const qs = floorId ? `?floor_id=${encodeURIComponent(floorId)}` : ''
+  const response = await fetch(`${API_BASE_URL}/api/owner/rooms${qs}`, {
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch rooms.')
+  }
+  return data
+}
+
+export async function createOwnerRoom(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/rooms`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to create room.')
+  }
+  return data
+}
+
+export async function fetchOwnerSingleRoom(roomId) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/rooms/${roomId}`, {
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch room details.')
+  }
+  return data
+}
+
+export async function updateOwnerRoom(roomId, payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/rooms/${roomId}`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update room.')
+  }
+  return data
+}
+
+export async function fetchOwnerRoomBeds(roomId) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/rooms/${roomId}/beds`, {
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch room beds.')
+  }
+  return data
+}
+
+export async function addOwnerBed(roomId, bedCode) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/rooms/${roomId}/beds`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ bed_code: bedCode }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to add bed.')
+  }
+  return data
+}
+
+export async function updateOwnerBedStatus(bedId, status) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/beds/${bedId}`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ status }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update bed status.')
+  }
+  return data
+}
+
+// ============================================================================
+// TENANTS CLIENT METHODS
+// ============================================================================
+
+export async function fetchOwnerTenants(params = {}) {
+  const query = new URLSearchParams()
+  if (params.status) query.set('status', params.status)
+  if (params.search) query.set('search', params.search)
+  const qs = query.toString() ? `?${query.toString()}` : ''
+
+  const response = await fetch(`${API_BASE_URL}/api/owner/tenants${qs}`, {
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch tenants.')
+  }
+  return data
+}
+
+export async function createOwnerTenant(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/tenants`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to register tenant.')
+  }
+  return data
+}
+
+export async function assignOwnerTenantBed(tenantId, roomId, bedId) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/tenants/${tenantId}/assign-bed`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ room_id: roomId, bed_id: bedId }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to assign bed.')
+  }
+  return data
+}
+
+export async function vacateOwnerTenant(tenantId, moveOutDate) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/tenants/${tenantId}/vacate`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ move_out_date: moveOutDate }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to vacate tenant.')
+  }
+  return data
+}
+
+// ============================================================================
+// BOOKINGS CLIENT METHODS
+// ============================================================================
+
+export async function fetchOwnerBookings(status) {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : ''
+  const response = await fetch(`${API_BASE_URL}/api/owner/bookings${qs}`, {
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch bookings.')
+  }
+  return data
+}
+
+export async function createOwnerBooking(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/bookings`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to create booking.')
+  }
+  return data
+}
+
+export async function updateOwnerBookingStatus(bookingId, bookingStatus, paymentStatus) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/bookings/${bookingId}/status`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ booking_status: bookingStatus, payment_status: paymentStatus }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update booking status.')
+  }
+  return data
+}
+
+/**
+ * Fetch all prospective tenant enquiries / leads from Supabase
+ */
+export async function fetchOwnerEnquiries(status = 'ALL', search = '') {
+  const params = new URLSearchParams()
+  if (status && status !== 'ALL') params.append('status', status)
+  if (search && search.trim()) params.append('search', search.trim())
+
+  const queryString = params.toString() ? `?${params.toString()}` : ''
+  const response = await fetch(`${API_BASE_URL}/api/owner/enquiries${queryString}`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch enquiries.')
+  }
+  return data
+}
+
+/**
+ * Update enquiry pipeline status (NEW, INTERESTED, VISIT_SCHEDULED, BOOKED, CLOSED)
+ */
+export async function updateOwnerEnquiryStatus(enquiryId, status) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/enquiries/${enquiryId}/status`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ status }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update enquiry status.')
+  }
+  return data
+}
+
+/**
+ * Fetch owner announcements
+ */
+export async function fetchOwnerAnnouncements(status = 'ALL') {
+  const params = status && status !== 'ALL' ? `?status=${encodeURIComponent(status)}` : ''
+  const response = await fetch(`${API_BASE_URL}/api/owner/announcements${params}`, {
+    method: 'GET',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch announcements.')
+  }
+  return data
+}
+
+/**
+ * Create announcement
+ */
+export async function createOwnerAnnouncement(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/announcements`, {
+    method: 'POST',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to create announcement.')
+  }
+  return data
+}
+
+/**
+ * Update announcement
+ */
+export async function updateOwnerAnnouncement(announcementId, payload) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/announcements/${announcementId}`, {
+    method: 'PATCH',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update announcement.')
+  }
+  return data
+}
+
+/**
+ * Delete announcement
+ */
+export async function deleteOwnerAnnouncement(announcementId) {
+  const response = await fetch(`${API_BASE_URL}/api/owner/announcements/${announcementId}`, {
+    method: 'DELETE',
+    headers: buildAuthHeaders(),
+    credentials: 'include',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to delete announcement.')
+  }
+  return data
+}
+
+

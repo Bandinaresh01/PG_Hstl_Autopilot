@@ -1,0 +1,67 @@
+[
+  {
+    "id": "RM-101",
+    "hostel_id": "11111111-1111-1111-1111-111111111111",
+    "room_number": "101",
+    "room_type": "TRIPLE",
+    "floor": 1,
+    "monthly_rent": 6500.0,
+    "security_deposit": 6500.0,
+    "capacity": 3,
+    "status": "ACTIVE",
+    "created_at": "2026-09-01T00:00:00+00:00",
+    "updated_at": "2026-09-01T00:00:00+00:00"
+  },
+  {
+    "id": "RM-102",
+    "hostel_id": "11111111-1111-1111-1111-111111111111",
+    "room_number": "102",
+    "room_type": "DOUBLE",
+    "floor": 1,
+    "monthly_rent": 8500.0,
+    "security_deposit": 8500.0,
+    "capacity": 2,
+    "status": "ACTIVE",
+    "created_at": "2026-09-01T00:00:00+00:00",
+    "updated_at": "2026-09-01T00:00:00+00:00"
+  },
+  {
+    "id": "RM-201",
+    "hostel_id": "11111111-1111-1111-1111-111111111111",
+    "room_number": "201",
+    "room_type": "SINGLE",
+    "floor": 2,
+    "monthly_rent": 14000.0,
+    "security_deposit": 14000.0,
+    "capacity": 1,
+    "status": "ACTIVE",
+    "created_at": "2026-09-01T00:00:00+00:00",
+    "updated_at": "2026-09-01T00:00:00+00:00"
+  },
+  {
+    "id": "RM-204",
+    "hostel_id": "11111111-1111-1111-1111-111111111111",
+    "room_number": "204",
+    "room_type": "DOUBLE",
+    "floor": 2,
+    "monthly_rent": 8500.0,
+    "security_deposit": 8500.0,
+    "capacity": 2,
+    "status": "ACTIVE",
+    "created_at": "2026-09-01T00:00:00+00:00",
+    "updated_at": "2026-09-01T00:00:00+00:00"
+  },
+  {
+    "id": "RM-301",
+    "hostel_id": "11111111-1111-1111-1111-111111111111",
+    "room_number": "301",
+    "room_type": "TRIPLE",
+    "floor": 3,
+    "monthly_rent": 7000.0,
+    "security_deposit": 7000.0,
+    "capacity": 3,
+    "status": "ACTIVE",
+    "created_at": "2026-09-01T00:00:00+00:00",
+    "updated_at": "2026-09-01T00:00:00+00:00"
+  }
+]

@@ -79,12 +79,12 @@ const EnquiryPage = () => {
         setSubmitted(true)
       } else {
         setErrorMessage(
-          "We couldn't submit your enquiry. Please try again."
+          result?.error || "We couldn't submit your enquiry. Please try again."
         )
       }
     } catch {
       setErrorMessage(
-        "We couldn't submit your enquiry. Please try again."
+        "We couldn't submit your enquiry. Please check your internet connection or verify the server is running."
       )
     } finally {
       setIsSubmitting(false)
